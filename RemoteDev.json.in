@@ -1,0 +1,12 @@
+{
+    \"Name\" : \"RemoteDev\",
+    \"Version\" : \"0.0.1\",
+    \"CompatVersion\" : \"0.0.1\",
+    \"Vendor\" : \"Community\",
+    \"Copyright\" : \"(C) Kyrylo Bohdanenko\",
+    \"License\" : \"MIT <http://opensource.org/licenses/MIT>\",
+    \"Description\" : \"Put a short description of your plugin here\",
+    \"Url\" : \"https://github.com/elvenfighter/qtc-plugins\",
+    $$dependencyList
+}
+

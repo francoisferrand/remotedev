@@ -1,0 +1,13 @@
+#ifndef REMOTEDEV_GLOBAL_H
+#define REMOTEDEV_GLOBAL_H
+
+#include <QtGlobal>
+
+#if defined(REMOTEDEV_LIBRARY)
+#  define REMOTEDEVSHARED_EXPORT Q_DECL_EXPORT
+#else
+#  define REMOTEDEVSHARED_EXPORT Q_DECL_IMPORT
+#endif
+
+#endif // REMOTEDEV_GLOBAL_H
+
