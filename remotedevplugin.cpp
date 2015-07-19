@@ -42,7 +42,9 @@ bool RemoteDevPlugin::initialize(const QStringList &arguments, QString *errorStr
 
     QAction *action = new QAction(tr("RemoteDev action"), this);
     Core::Command *cmd = Core::ActionManager::registerAction(action, Constants::ACTION_ID,
-                                                             Core::Context(Core::Constants::C_GLOBAL));
+//                                                             Core::Context(Core::Constants::C_NAVIGATION_PANE)
+                                                             Core::Context(Core::Constants::C_GLOBAL)
+                                                             );
     cmd->setDefaultKeySequence(QKeySequence(tr("Ctrl+Alt+Meta+A")));
     connect(action, SIGNAL(triggered()), this, SLOT(triggerAction()));
 
@@ -61,18 +63,75 @@ void RemoteDevPlugin::extensionsInitialized()
     // plugins that depend on it are completely initialized.
 }
 
+bool RemoteDevPlugin::delayedInitialize()
+{
+    // Perforn non-trivial startup sequence after application startup
+    // Return true, if implemented
+    QSsh::SshConnectionParameters params;
+    params.host = QString::fromLatin1("localhost");
+    params.userName = QString::fromLatin1("elvenfighter");
+
+    params.timeout = 30;
+    params.authenticationType = QSsh::SshConnectionParameters::AuthenticationTypePublicKey;
+    params.port = 22;
+//    params.options &= ~QSsh::SshEnableStrictConformanceChecks;
+//    params.hostKeyCheckingMode = QSsh::SshHostKeyCheckingStrict;
+//    params.hostKeyDatabase = QSsh::SshHostKeyDatabasePtr::create();
+
+    m_connection = new QSsh::SshConnection(params, this);
+
+    connect(m_connection, SIGNAL(connected()), this, SLOT(onSshConnected()));
+    connect(m_connection, SIGNAL(error(QSsh::SshError)),
+            this, SLOT(onSshError(QSsh::SshError)));
+    connect(m_connection, SIGNAL(disconnected()), this, SLOT(onSshDisconnected()));
+
+    return true;
+}
+
 ExtensionSystem::IPlugin::ShutdownFlag RemoteDevPlugin::aboutToShutdown()
 {
     // Save settings
     // Disconnect from signals that are not needed during shutdown
     // Hide UI (if you add UI that is not in the main window directly)
+    // If required to wait, until external process finishes
+    // return AsynchronousShutdown;
+    // emit asynchronousShutdownFinished();
     return SynchronousShutdown;
 }
 
 void RemoteDevPlugin::triggerAction()
 {
     QMessageBox::information(Core::ICore::mainWindow(),
-                             tr("Action triggered"),
-                             tr("This is an action from RemoteDev."));
+                             tr("SSH connection"),
+                             tr("Connecting to host."));
+    m_connection->connectToHost();
+}
+
+void RemoteDevPlugin::onSshConnected()
+{
+    QMessageBox::information(Core::ICore::mainWindow(),
+                             tr("SSH connection"),
+                             tr("SSH connection successfull."));
+
+    m_connection->disconnectFromHost();
+}
+
+void RemoteDevPlugin::onSshDisconnected()
+{
+    QMessageBox::information(Core::ICore::mainWindow(),
+                             tr("SSH connection"),
+                             tr("SSH disconnected."));
+}
+
+void RemoteDevPlugin::onSshError(QSsh::SshError error)
+{
+    Q_UNUSED(error);
+
+    QMessageBox::information(Core::ICore::mainWindow(),
+                             tr("SSH connection"),
+                             tr("SSH connection error: ") + m_connection->errorString());
+    if (m_connection->state() != QSsh::SshConnection::Unconnected) {
+        m_connection->disconnectFromHost();
+    }
 }
 

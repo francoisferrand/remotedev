@@ -32,13 +32,16 @@ isEmpty(IDE_BUILD_TREE):IDE_BUILD_TREE=/home/elvenfighter/Programs/QtTest/Tools/
 
 QTC_PLUGIN_NAME = RemoteDev
 QTC_LIB_DEPENDS += \
-    # nothing here at this time
+    ssh
+    # aggregation extensionsystem utils
 
 QTC_PLUGIN_DEPENDS += \
     coreplugin
 
 QTC_PLUGIN_RECOMMENDS += \
     # optional plugin dependencies. nothing here at this time
+
+QT *= network
 
 ###### End _dependencies.pri contents ######
 

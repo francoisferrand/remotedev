@@ -5,6 +5,8 @@
 
 #include <extensionsystem/iplugin.h>
 
+#include <ssh/sshconnection.h>
+
 namespace RemoteDev {
 namespace Internal {
 
@@ -19,10 +21,17 @@ public:
 
     bool initialize(const QStringList &arguments, QString *errorString);
     void extensionsInitialized();
+    bool delayedInitialize();
     ShutdownFlag aboutToShutdown();
 
 private slots:
     void triggerAction();
+
+    void onSshConnected();
+    void onSshDisconnected();
+    void onSshError(QSsh::SshError error);
+private:
+    QSsh::SshConnection *m_connection;
 };
 
 } // namespace Internal
