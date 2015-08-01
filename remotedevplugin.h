@@ -5,7 +5,7 @@
 
 #include <extensionsystem/iplugin.h>
 
-#include <ssh/sshconnection.h>
+#include "connectionmanager.h"
 
 QT_BEGIN_NAMESPACE
 class QAction;
@@ -36,17 +36,14 @@ public slots:
 private slots:
     void triggerAction();
 
-    void onSshConnected();
-    void onSshDisconnected();
-    void onSshError(QSsh::SshError error);
+    void onConnectionError(RemoteConnection::SharedPointer connection);
 
     // EditorManager
-    void onEditorChanged(Core::IEditor *editor);
+    void onEditorOpened(Core::IEditor *editor);
 
     // ActionManager
-    void onSaveAction(bool checked);
+    void onSaveAction();
 private:
-    QSsh::SshConnection *m_connection;
     QAction *m_saveAction;
     QAction *m_saveAsAction;
 

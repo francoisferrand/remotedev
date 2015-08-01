@@ -1,27 +1,26 @@
 #include "remotedevplugin.h"
 #include "remotedevconstants.h"
 
+#include "connectionmanager.h"
+
+#include <QAction>
+#include <QMenu>
+#include <QTime>
+
 #include <coreplugin/icore.h>
 #include <coreplugin/icontext.h>
 #include <coreplugin/actionmanager/actionmanager.h>
 #include <coreplugin/actionmanager/command.h>
 #include <coreplugin/actionmanager/actioncontainer.h>
 #include <coreplugin/coreconstants.h>
-
-//#include <texteditor/texteditor.h>
-//#include <texteditor/textdocument.h>
-#include <coreplugin/editormanager/editormanager.h>
-#include <coreplugin/editormanager/ieditor.h>
 #include <coreplugin/documentmanager.h>
 #include <coreplugin/idocument.h>
 #include <coreplugin/messagemanager.h>
+#include <coreplugin/editormanager/editormanager.h>
+#include <coreplugin/editormanager/ieditor.h>
 
-#include <QAction>
-#include <QMessageBox>
-#include <QMainWindow>
-#include <QMenu>
-
-#include <QtPlugin>
+//#include <texteditor/texteditor.h>
+//#include <texteditor/textdocument.h>
 
 using namespace RemoteDev::Internal;
 
@@ -32,17 +31,17 @@ using Core::ActionManager;
 using Core::MessageManager;
 
 RemoteDevPlugin::RemoteDevPlugin() :
-    m_connection(nullptr),
     m_saveAction(nullptr),
     m_saveAsAction(nullptr)
 {
-    // Create your members
+    (void) new ConnectionManager(this);
 }
 
 RemoteDevPlugin::~RemoteDevPlugin()
 {
     // Unregister objects from the plugin manager's object pool
     // Delete members
+    delete ConnectionManager::instance();
 }
 
 bool RemoteDevPlugin::initialize(const QStringList &arguments, QString *errorString)
@@ -72,12 +71,14 @@ bool RemoteDevPlugin::initialize(const QStringList &arguments, QString *errorStr
 
     // NOTE: currentEditorChanged is also triggered upon editorOpened
     EditorManager *editorManager = EditorManager::instance();
-    connect(editorManager, SIGNAL(editorOpened(Core::IEditor*)), this, SLOT(onEditorChanged(Core::IEditor*)));
-//    connect(editorManager, SIGNAL(currentEditorChanged(Core::IEditor*)), this, SLOT(onEditorChanged(Core::IEditor*)));
+//    connect(editorManager, SIGNAL(editorOpened(Core::IEditor*)), this, SLOT(onEditorOpened(Core::IEditor*)));
+    connect(editorManager, SIGNAL(currentEditorChanged(Core::IEditor*)), this, SLOT(onEditorOpened(Core::IEditor*)));
 
     m_saveAction = ActionManager::command(Core::Constants::SAVE)->action();
-    connect(m_saveAction, SIGNAL(triggered(bool)), this, SLOT(onSaveAction(bool)));
+    connect(m_saveAction, SIGNAL(triggered(bool)), this, SLOT(onSaveAction()));
 
+    ConnectionManager *connectionManager = ConnectionManager::instance();
+    connect(connectionManager, &ConnectionManager::connectionError, this, &RemoteDevPlugin::onConnectionError);
 
     return true;
 }
@@ -93,28 +94,10 @@ bool RemoteDevPlugin::delayedInitialize()
 {
     // Perforn non-trivial startup sequence after application startup
     // Return true, if implemented
-    QSsh::SshConnectionParameters params;
-    params.host = QString::fromLatin1("localhost");
-    params.userName = QString::fromLatin1("elvenfighter");
-    params.privateKeyFile = QString::fromLatin1(
-                "/home/elvenfighter/Projects/keys/localhost.rsa");
-    params.timeout = 30;
-    params.authenticationType = QSsh::SshConnectionParameters::AuthenticationTypePublicKey;
-    params.port = 22;
-//    params.options &= ~QSsh::SshEnableStrictConformanceChecks;
-//    params.hostKeyCheckingMode = QSsh::SshHostKeyCheckingStrict;
-//    params.hostKeyDatabase = QSsh::SshHostKeyDatabasePtr::create();
 
-    m_connection = new QSsh::SshConnection(params, this);
+    // TODO: read configuration, create connections, install handlers
 
-    connect(m_connection, SIGNAL(connected()), this, SLOT(onSshConnected()));
-    connect(m_connection, SIGNAL(error(QSsh::SshError)),
-            this, SLOT(onSshError(QSsh::SshError)));
-    connect(m_connection, SIGNAL(disconnected()), this, SLOT(onSshDisconnected()));
-
-//    DocumentManager *documentManager = DocumentManager::instance();
-
-    return true;
+    return false;
 }
 
 ExtensionSystem::IPlugin::ShutdownFlag RemoteDevPlugin::aboutToShutdown()
@@ -125,70 +108,82 @@ ExtensionSystem::IPlugin::ShutdownFlag RemoteDevPlugin::aboutToShutdown()
     // If required to wait, until external process finishes
     // return AsynchronousShutdown;
     // emit asynchronousShutdownFinished();
+
+    // FIXME: remote disconnect asynchronous?
+    disconnect(this, SLOT(onConnectionError(RemoteConnection::SharedPointer)));
+    disconnect(this, SLOT(onEditorOpened(Core::IEditor*)));
+
     return SynchronousShutdown;
 }
 
 void RemoteDevPlugin::uploadCurrentDocument()
 {
-//    DocumentManager::instance()->e
     Core::IDocument *document = EditorManager::currentDocument();
 
     if (document) {
         QString name = document->displayName();
-        this->showDebug(tr("Uploading file: ") + name);
+        this->showDebug(tr("Starting file upload") + QString::fromLatin1(": ") + name);
 
-//        const Utils::FileName = document->filePath();
-//        QSharedPointer<QSsh::SftpChannel> channel = m_connection->createSftpChannel();
+        const auto &local = document->filePath();
+        const auto remote = Utils::FileName::fromString(QString::fromLatin1("/tmp/") + local.fileName());
+
+        auto connection = ConnectionManager::connectionForAlias(QString::fromLatin1("localhost"));
+
+        // TODO: time these
+
+        // FIXME: move handler installation to the delayedInitialize()
+        // since now there is only one connection -> this is okay
+        static bool handlerInstalled = false;
+        if (! handlerInstalled) {
+            handlerInstalled = true;
+            connect(connection.data(), &RemoteConnection::uploadFinished,
+                    [this, name] () -> void {
+                        this->showDebug(QString::fromLatin1("%1: %2").arg(name, tr("success")));
+                    });
+            connect(connection.data(), &RemoteConnection::uploadError,
+                    [this, name] () -> void {
+                        this->showDebug(QString::fromLatin1("%1: %2").arg(name, tr("failure")));
+                    });
+        }
+
+        connection->uploadFile(local, remote, OverwriteExisting);
     }
 }
 
 void RemoteDevPlugin::triggerAction()
 {
-    this->showDebug(tr("Connecting to host."));
-
-    m_connection->connectToHost();
+    this->showDebug(tr("Action triggered"));
 }
 
-void RemoteDevPlugin::onSshConnected()
+void RemoteDevPlugin::onConnectionError(RemoteConnection::SharedPointer connection)
 {
-    this->showDebug(tr("SSH connection successfull."));
-
-    m_connection->disconnectFromHost();
-}
-
-void RemoteDevPlugin::onSshDisconnected()
-{
-    this->showDebug(tr("SSH disconnected."));
-}
-
-void RemoteDevPlugin::onSshError(QSsh::SshError error)
-{
-    Q_UNUSED(error);
-
-    this->showDebug(tr("SSH connection error: ") + m_connection->errorString());
-
-    if (m_connection->state() != QSsh::SshConnection::Unconnected) {
-        m_connection->disconnectFromHost();
+    if (connection) {
+        this->showDebug(tr("Remote connection error")
+                        + QString::fromLatin1(": ")
+                        + connection->errorString());
+    } else {
+        this->showDebug(tr("Remote connection error"));
     }
 }
 
-void RemoteDevPlugin::onEditorChanged(Core::IEditor *editor)
+void RemoteDevPlugin::onEditorOpened(Core::IEditor *editor)
 {
-    QString className = QString::fromLatin1(editor->metaObject()->className());
-    this->showDebug(tr("Editor changed: ")  + className);
+    if (editor) {
+        QString className = QString::fromLatin1(editor->metaObject()->className());
+        this->showDebug(tr("Editor opened: ") + className);
 
-    this->uploadCurrentDocument();
+        uploadCurrentDocument();
+    }
 }
 
-void RemoteDevPlugin::onSaveAction(bool checked)
+void RemoteDevPlugin::onSaveAction()
 {
-    Q_UNUSED(checked);
-    this->uploadCurrentDocument();
+    uploadCurrentDocument();
 }
 
 void RemoteDevPlugin::showDebug(const QString &string) const
 {
     MessageManager *messageManager = qobject_cast<MessageManager *>(MessageManager::instance());
-    messageManager->write(string, { MessageManager::NoModeSwitch, MessageManager::WithFocus });
+    messageManager->write(string, { MessageManager::NoModeSwitch });
 }
 

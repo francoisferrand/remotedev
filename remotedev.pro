@@ -2,11 +2,17 @@ DEFINES += REMOTEDEV_LIBRARY
 
 # RemoteDev files
 
-SOURCES += remotedevplugin.cpp
+SOURCES += remotedevplugin.cpp \
+    connectionmanager.cpp \
+    remoteconnection.cpp
 
 HEADERS += remotedevplugin.h \
         remotedev_global.h \
-        remotedevconstants.h
+        remotedevconstants.h \
+    connectionmanager.h \
+    remoteconnection.h
+
+CONFIG += C++11
 
 # Qt Creator linking
 
