@@ -4,13 +4,15 @@ DEFINES += REMOTEDEV_LIBRARY
 
 SOURCES += remotedevplugin.cpp \
     connectionmanager.cpp \
-    remoteconnection.cpp
+    remoteconnection.cpp \
+    remoteconnection/sftpconnection.cpp
 
 HEADERS += remotedevplugin.h \
         remotedev_global.h \
         remotedevconstants.h \
     connectionmanager.h \
-    remoteconnection.h
+    remoteconnection.h \
+    remoteconnection/sftpconnection.h
 
 CONFIG += C++11
 

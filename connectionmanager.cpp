@@ -4,6 +4,8 @@
 
 #include <ssh/sshconnection.h>
 
+#include "remoteconnection/sftpconnection.h"
+
 using namespace RemoteDev::Internal;
 
 ConnectionManager *ConnectionManager::m_instance;
@@ -41,11 +43,12 @@ RemoteConnection::SharedPointer ConnectionManager::connectionForAlias(const QStr
 //        params.hostKeyCheckingMode = QSsh::SshHostKeyCheckingStrict;
 //        params.hostKeyDatabase = QSsh::SshHostKeyDatabasePtr::create();
 
-        RemoteConnection::SharedPointer connection(new RemoteConnection(alias, params, m_instance));
+        // FIXME: connection factory?
+        RemoteConnection::SharedPointer connection(new SftpConnection(alias, params, m_instance));
 
         connect(connection.data(), &RemoteConnection::disconnected,
                 m_instance, &ConnectionManager::onDisconnected);
-        connect(connection.data(), &RemoteConnection::connectError,
+        connect(connection.data(), &RemoteConnection::connectionError,
                 m_instance, &ConnectionManager::onConnectionError);
 
         m_instance->m_connectionPool.insert(alias, connection);

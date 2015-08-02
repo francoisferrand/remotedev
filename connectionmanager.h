@@ -44,7 +44,7 @@ private slots:
 private:
     static ConnectionManager *m_instance;
 
-    QMap<QString, RemoteConnection::SharedPointer> m_connectionPool;
+    QHash<QString, RemoteConnection::SharedPointer> m_connectionPool;
     QMutex m_connectionPoolMutex;
 
     friend class RemoteDev::Internal::RemoteDevPlugin;
