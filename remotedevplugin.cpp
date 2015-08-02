@@ -122,7 +122,6 @@ void RemoteDevPlugin::uploadCurrentDocument()
 
     if (document) {
         QString name = document->displayName();
-        this->showDebug(tr("Starting file upload") + QString::fromLatin1(": ") + name);
 
         const auto &local = document->filePath();
         const auto remote = Utils::FileName::fromString(QString::fromLatin1("/tmp/") + local.fileName());
@@ -137,16 +136,27 @@ void RemoteDevPlugin::uploadCurrentDocument()
         if (! handlerInstalled) {
             handlerInstalled = true;
             connect(connection.data(), &RemoteConnection::uploadFinished,
-                    [this, name] () -> void {
-                        this->showDebug(QString::fromLatin1("%1: %2").arg(name, tr("success")));
+                    [this, name] (RemoteJobId job) -> void {
+                        auto timer = m_timers.take(job);
+                        int elapsed = timer ? timer->elapsed() : 0;
+
+                        this->showDebug(QString::fromLatin1("%1: %2 [%3 ms]")
+                                        .arg(name, tr("success"), QString::number(elapsed)));
                     });
             connect(connection.data(), &RemoteConnection::uploadError,
-                    [this, name] () -> void {
-                        this->showDebug(QString::fromLatin1("%1: %2").arg(name, tr("failure")));
+                    [this, name] (RemoteJobId job, const QString &reason) -> void {
+                        auto timer = m_timers.take(job);
+                        int elapsed = timer ? timer->elapsed() : 0;
+
+                        this->showDebug(QString::fromLatin1("%1: %2 [%3 ms]: %4")
+                                        .arg(name, tr("failure"), QString::number(elapsed), reason));
                     });
         }
 
-        connection->uploadFile(local, remote, OverwriteExisting);
+        auto timer = QSharedPointer<QTime>(new QTime);
+        timer->start();
+        RemoteJobId job = connection->uploadFile(local, remote, OverwriteExisting);
+        m_timers.insert(job, timer);
     }
 }
 

@@ -3,12 +3,15 @@
 
 #include "remotedev_global.h"
 
+#include <QHash>
+
 #include <extensionsystem/iplugin.h>
 
 #include "connectionmanager.h"
 
 QT_BEGIN_NAMESPACE
 class QAction;
+class QTime;
 QT_END_NAMESPACE
 
 namespace Core { class IEditor; }
@@ -48,6 +51,9 @@ private:
     QAction *m_saveAsAction;
 
     void showDebug(const QString &string) const;
+
+private:
+    QHash<RemoteJobId, QSharedPointer<QTime>> m_timers;
 };
 
 } // namespace Internal
