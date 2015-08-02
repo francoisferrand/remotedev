@@ -1,7 +1,6 @@
 #include "remotedevplugin.h"
 #include "remotedevconstants.h"
 
-
 #include <QAction>
 #include <QMenu>
 #include <QTime>
@@ -19,15 +18,11 @@
 #include <coreplugin/editormanager/ieditor.h>
 
 #include "connectionmanager.h"
-
-//#include <texteditor/texteditor.h>
-//#include <texteditor/textdocument.h>
+#include "remoteoptionspage.h"
 
 using namespace RemoteDev::Internal;
 
-//using TextEditor::BaseTextEditor;
 using Core::EditorManager;
-//using Core::DocumentManager;
 using Core::ActionManager;
 using Core::MessageManager;
 
@@ -78,6 +73,8 @@ bool RemoteDevPlugin::initialize(const QStringList &arguments, QString *errorStr
 
     ConnectionManager *connectionManager = ConnectionManager::instance();
     connect(connectionManager, &ConnectionManager::connectionError, this, &RemoteDevPlugin::onConnectionError);
+
+    createOptionsPage();
 
     return true;
 }
@@ -183,6 +180,12 @@ void RemoteDevPlugin::onEditorOpened(Core::IEditor *)
 void RemoteDevPlugin::onSaveAction()
 {
     uploadCurrentDocument();
+}
+
+void RemoteDevPlugin::createOptionsPage()
+{
+    m_optionsPage = new RemoteOptionsPage(this);
+    addAutoReleasedObject(m_optionsPage);
 }
 
 void RemoteDevPlugin::showDebug(const QString &string) const

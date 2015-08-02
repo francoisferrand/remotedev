@@ -5,14 +5,18 @@ DEFINES += REMOTEDEV_LIBRARY
 SOURCES += remotedevplugin.cpp \
     connectionmanager.cpp \
     remoteconnection.cpp \
-    remoteconnection/sftpconnection.cpp
+    remoteconnection/sftpconnection.cpp \
+    remoteoptionspage.cpp \
+    remoteoptionswidget.cpp
 
 HEADERS += remotedevplugin.h \
         remotedev_global.h \
         remotedevconstants.h \
     connectionmanager.h \
     remoteconnection.h \
-    remoteconnection/sftpconnection.h
+    remoteconnection/sftpconnection.h \
+    remoteoptionspage.h \
+    remoteoptionswidget.h
 
 CONFIG += C++11
 
@@ -37,4 +41,7 @@ isEmpty(IDE_BUILD_TREE):IDE_BUILD_TREE=/home/elvenfighter/Programs/QtTest/Tools/
 include(remotedev_dependencies.pri)
 
 include($$QTCREATOR_SOURCES/src/qtcreatorplugin.pri)
+
+FORMS += \
+    remoteoptionswidget.ui
 

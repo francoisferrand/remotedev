@@ -19,6 +19,8 @@ namespace Core { class IEditor; }
 namespace RemoteDev {
 namespace Internal {
 
+class RemoteOptionsPage;
+
 class RemoteDevPlugin : public ExtensionSystem::IPlugin
 {
     Q_OBJECT
@@ -49,9 +51,13 @@ private slots:
     void onSaveAction();
 
 private:
+    void createOptionsPage();
+
     void showDebug(const QString &string) const;
 
 private:
+    RemoteOptionsPage *m_optionsPage;
+
     QHash<RemoteJobId, QSharedPointer<QTime>> m_timers;
 };
 
