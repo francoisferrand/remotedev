@@ -1,7 +1,6 @@
 #include "remotedevplugin.h"
 #include "remotedevconstants.h"
 
-#include "connectionmanager.h"
 
 #include <QAction>
 #include <QMenu>
@@ -19,6 +18,8 @@
 #include <coreplugin/editormanager/editormanager.h>
 #include <coreplugin/editormanager/ieditor.h>
 
+#include "connectionmanager.h"
+
 //#include <texteditor/texteditor.h>
 //#include <texteditor/textdocument.h>
 
@@ -26,13 +27,11 @@ using namespace RemoteDev::Internal;
 
 //using TextEditor::BaseTextEditor;
 using Core::EditorManager;
-using Core::DocumentManager;
+//using Core::DocumentManager;
 using Core::ActionManager;
 using Core::MessageManager;
 
-RemoteDevPlugin::RemoteDevPlugin() :
-    m_saveAction(nullptr),
-    m_saveAsAction(nullptr)
+RemoteDevPlugin::RemoteDevPlugin()
 {
     (void) new ConnectionManager(this);
 }
@@ -74,8 +73,8 @@ bool RemoteDevPlugin::initialize(const QStringList &arguments, QString *errorStr
 //    connect(editorManager, SIGNAL(editorOpened(Core::IEditor*)), this, SLOT(onEditorOpened(Core::IEditor*)));
     connect(editorManager, SIGNAL(currentEditorChanged(Core::IEditor*)), this, SLOT(onEditorOpened(Core::IEditor*)));
 
-    m_saveAction = ActionManager::command(Core::Constants::SAVE)->action();
-    connect(m_saveAction, SIGNAL(triggered(bool)), this, SLOT(onSaveAction()));
+    QAction *saveAction = ActionManager::command(Core::Constants::SAVE)->action();
+    connect(saveAction, SIGNAL(triggered(bool)), this, SLOT(onSaveAction()));
 
     ConnectionManager *connectionManager = ConnectionManager::instance();
     connect(connectionManager, &ConnectionManager::connectionError, this, &RemoteDevPlugin::onConnectionError);
@@ -176,14 +175,9 @@ void RemoteDevPlugin::onConnectionError(RemoteConnection::SharedPointer connecti
     }
 }
 
-void RemoteDevPlugin::onEditorOpened(Core::IEditor *editor)
+void RemoteDevPlugin::onEditorOpened(Core::IEditor *)
 {
-    if (editor) {
-        QString className = QString::fromLatin1(editor->metaObject()->className());
-        this->showDebug(tr("Editor opened: ") + className);
-
-        uploadCurrentDocument();
-    }
+    uploadCurrentDocument();
 }
 
 void RemoteDevPlugin::onSaveAction()

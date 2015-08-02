@@ -7,7 +7,7 @@
 
 #include <extensionsystem/iplugin.h>
 
-#include "connectionmanager.h"
+#include "remoteconnection.h"
 
 QT_BEGIN_NAMESPACE
 class QAction;
@@ -39,17 +39,16 @@ public slots:
 private slots:
     void triggerAction();
 
+    // ConnectionManager
     void onConnectionError(RemoteConnection::SharedPointer connection);
 
     // EditorManager
-    void onEditorOpened(Core::IEditor *editor);
+    void onEditorOpened(Core::IEditor *);
 
     // ActionManager
     void onSaveAction();
-private:
-    QAction *m_saveAction;
-    QAction *m_saveAsAction;
 
+private:
     void showDebug(const QString &string) const;
 
 private:
