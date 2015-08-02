@@ -43,8 +43,10 @@ RemoteConnection::SharedPointer ConnectionManager::connectionForAlias(const QStr
 
         RemoteConnection::SharedPointer connection(new RemoteConnection(alias, params, m_instance));
 
-        connect(connection.data(), SIGNAL(disconnected()), m_instance, SLOT(onDisconnected()));
-        connect(connection.data(), SIGNAL(connectError()), m_instance, SLOT(onConnectionError()));
+        connect(connection.data(), &RemoteConnection::disconnected,
+                m_instance, &ConnectionManager::onDisconnected);
+        connect(connection.data(), &RemoteConnection::connectError,
+                m_instance, &ConnectionManager::onConnectionError);
 
         m_instance->m_connectionPool.insert(alias, connection);
     }
