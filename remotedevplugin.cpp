@@ -17,8 +17,13 @@
 #include <coreplugin/editormanager/editormanager.h>
 #include <coreplugin/editormanager/ieditor.h>
 
+#include <projectexplorer/devicesupport/devicemanager.h>
+#include <projectexplorer/project.h>
+#include <projectexplorer/session.h>
+
 #include "connectionmanager.h"
-#include "remoteoptionspage.h"
+#include "connectionspage.h"
+#include "connection/sftpoptionspage.h"
 
 using namespace RemoteDev::Internal;
 
@@ -105,14 +110,88 @@ ExtensionSystem::IPlugin::ShutdownFlag RemoteDevPlugin::aboutToShutdown()
     // return AsynchronousShutdown;
     // emit asynchronousShutdownFinished();
 
-    // FIXME: remote disconnect asynchronous?
-    disconnect(this, SLOT(onConnectionError(RemoteConnection::SharedPointer)));
+    // TODO: disconnect all existing connections?
+    // Should it be done asynchronously?
+
+    disconnect(this, SLOT(onConnectionError(Connection::Ptr)));
     disconnect(this, SLOT(onEditorOpened(Core::IEditor*)));
 
     return SynchronousShutdown;
 }
 
+// FIXME: this is only for testing DeviceManager
+//#include <ssh/sshconnection.h>
+
 void RemoteDevPlugin::uploadCurrentDocument()
+{
+    Core::IDocument *document = EditorManager::currentDocument();
+    if (! document) return;
+
+    const auto &local = document->filePath();
+
+    Utils::FileName relPath;
+    auto remote = Utils::FileName::fromString(QStringLiteral("/tmp"));
+
+    // TODO: move this to initialize(), depend on ProjectExplorer
+    auto projects = ProjectExplorer::SessionManager::projects();
+    for (auto &project : projects) {
+        Utils::FileName dir = project->projectDirectory();
+        if (local.isChildOf(dir)) {
+            // FIXME: only for debug
+            remote.appendPath(project->displayName());
+
+            remote.appendPath(local.relativeChildPath(dir).toString());
+            break;
+        }
+    }
+
+    showDebug(QStringLiteral("Upload %1 to %2").arg(local.fileName(), remote.toString()));
+
+    auto *mgr = ProjectExplorer::DeviceManager::instance();
+    for (int i = 0; i < mgr->deviceCount(); i++) {
+        auto device = mgr->deviceAt(i);
+//        bool canCreateProcess() const { return true; }
+//        ProjectExplorer::DeviceProcess *createProcess(QObject *parent) const;
+//        bool canAutoDetectPorts() const;
+//        ProjectExplorer::PortsGatheringMethod::Ptr portsGatheringMethod() const;
+//        bool canCreateProcessModel() const { return true; }
+//        ProjectExplorer::DeviceProcessList *createProcessListModel(QObject *parent) const;
+
+        auto connection = ConnectionManager::connectionForDevice(device.data());
+        if (connection.isNull())
+            continue;
+
+        static QSet<QString> hasHandler;
+        if (! hasHandler.contains(connection->alias())) {
+            connect(connection.data(), &Connection::uploadFinished,
+                [this, connection, local] (RemoteJobId job) -> void {
+                    auto timer = m_timers.take(job);
+                    int elapsed = timer ? timer->elapsed() : 0;
+
+                    this->showDebug(QString::fromLatin1("%1: %2 [%3 ms]")
+                                    .arg(connection->alias(), tr("success"), QString::number(elapsed)));
+                }
+            );
+            connect(connection.data(), &Connection::uploadError,
+                [this, connection, local] (RemoteJobId job, const QString &reason) -> void {
+                    auto timer = m_timers.take(job);
+                    int elapsed = timer ? timer->elapsed() : 0;
+
+                    this->showDebug(QString::fromLatin1("%1: %2 [%3 ms]: %4")
+                                    .arg(connection->alias(), tr("failure"), QString::number(elapsed), reason));
+                }
+            );
+            hasHandler.insert(connection->alias());
+        }
+
+        auto timer = QSharedPointer<QTime>(new QTime);
+        timer->start();
+        RemoteJobId job = connection->uploadFile(local, remote, OverwriteExisting);
+        m_timers.insert(job, timer);
+    }
+}
+
+void RemoteDevPlugin::uploadCurrentDocument1()
 {
     Core::IDocument *document = EditorManager::currentDocument();
 
@@ -124,14 +203,12 @@ void RemoteDevPlugin::uploadCurrentDocument()
 
         auto connection = ConnectionManager::connectionForAlias(QString::fromLatin1("localhost"));
 
-        // TODO: time these
-
         // FIXME: move handler installation to the delayedInitialize()
         // since now there is only one connection -> this is okay
         static bool handlerInstalled = false;
         if (! handlerInstalled) {
             handlerInstalled = true;
-            connect(connection.data(), &RemoteConnection::uploadFinished,
+            connect(connection.data(), &Connection::uploadFinished,
                     [this, name] (RemoteJobId job) -> void {
                         auto timer = m_timers.take(job);
                         int elapsed = timer ? timer->elapsed() : 0;
@@ -139,7 +216,7 @@ void RemoteDevPlugin::uploadCurrentDocument()
                         this->showDebug(QString::fromLatin1("%1: %2 [%3 ms]")
                                         .arg(name, tr("success"), QString::number(elapsed)));
                     });
-            connect(connection.data(), &RemoteConnection::uploadError,
+            connect(connection.data(), &Connection::uploadError,
                     [this, name] (RemoteJobId job, const QString &reason) -> void {
                         auto timer = m_timers.take(job);
                         int elapsed = timer ? timer->elapsed() : 0;
@@ -161,7 +238,7 @@ void RemoteDevPlugin::triggerAction()
     this->showDebug(tr("Action triggered"));
 }
 
-void RemoteDevPlugin::onConnectionError(RemoteConnection::SharedPointer connection)
+void RemoteDevPlugin::onConnectionError(Connection::Ptr connection)
 {
     if (connection) {
         this->showDebug(tr("Remote connection error")
@@ -184,7 +261,11 @@ void RemoteDevPlugin::onSaveAction()
 
 void RemoteDevPlugin::createOptionsPage()
 {
-    m_optionsPage = new RemoteOptionsPage(this);
+    // register bundled connection types (SSH)
+    addAutoReleasedObject(new SftpOptionsPage(this));
+
+    m_optionsPage = new ConnectionsPage(this);
+    // TODO: load Core::ICore::settings();
     addAutoReleasedObject(m_optionsPage);
 }
 

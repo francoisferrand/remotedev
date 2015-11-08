@@ -7,7 +7,7 @@
 
 #include <extensionsystem/iplugin.h>
 
-#include "remoteconnection.h"
+#include "connection.h"
 
 QT_BEGIN_NAMESPACE
 class QAction;
@@ -19,7 +19,7 @@ namespace Core { class IEditor; }
 namespace RemoteDev {
 namespace Internal {
 
-class RemoteOptionsPage;
+class ConnectionsPage;
 
 class RemoteDevPlugin : public ExtensionSystem::IPlugin
 {
@@ -37,12 +37,13 @@ public:
 
 public slots:
     void uploadCurrentDocument();
+    void uploadCurrentDocument1();
 
 private slots:
     void triggerAction();
 
     // ConnectionManager
-    void onConnectionError(RemoteConnection::SharedPointer connection);
+    void onConnectionError(Connection::Ptr connection);
 
     // EditorManager
     void onEditorOpened(Core::IEditor *);
@@ -56,7 +57,7 @@ private:
     void showDebug(const QString &string) const;
 
 private:
-    RemoteOptionsPage *m_optionsPage;
+    ConnectionsPage *m_optionsPage;
 
     QHash<RemoteJobId, QSharedPointer<QTime>> m_timers;
 };

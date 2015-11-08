@@ -1,10 +1,10 @@
-#include "remoteoptionspage.h"
+#include "connectionspage.h"
 
-#include "remoteoptionswidget.h"
+#include "connectionswidget.h"
 
 using namespace RemoteDev::Internal;
 
-RemoteOptionsPage::RemoteOptionsPage(QObject *parent) :
+ConnectionsPage::ConnectionsPage(QObject *parent) :
     IOptionsPage(parent),
     m_widget(nullptr)
 {
@@ -17,22 +17,22 @@ RemoteOptionsPage::RemoteOptionsPage(QObject *parent) :
 }
 
 
-QWidget *RemoteOptionsPage::widget()
+QWidget *ConnectionsPage::widget()
 {
     if (! m_widget) {
-        m_widget = new Internal::RemoteOptionsWidget;
+        m_widget = new Internal::ConnectionsWidget;
     }
     return m_widget;
 }
 
 
-void RemoteOptionsPage::apply()
+void ConnectionsPage::apply()
 {
     // TODO: implement
 }
 
 
-void RemoteOptionsPage::finish()
+void ConnectionsPage::finish()
 {
     // TODO: implement: options before dialog is closed
     delete m_widget;

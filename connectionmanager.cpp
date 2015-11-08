@@ -3,9 +3,11 @@
 #include <QMutexLocker>
 
 #include <ssh/sshconnection.h>
+#include <projectexplorer/devicesupport/idevice.h>
 
-#include "remoteconnection/sftpconnection.h"
+#include "connection/sftpconnection.h"
 
+using namespace RemoteDev;
 using namespace RemoteDev::Internal;
 
 ConnectionManager *ConnectionManager::m_instance;
@@ -28,10 +30,12 @@ ConnectionManager *ConnectionManager::instance()
     return m_instance;
 }
 
-RemoteConnection::SharedPointer ConnectionManager::connectionForAlias(const QString &alias)
+Connection::Ptr ConnectionManager::connectionForAlias(const QString &alias)
 {
+    // DeviceManager?
+
     QMutexLocker locker(&m_instance->m_connectionPoolMutex);
-    if (! m_instance->m_connectionPool.contains(alias)) {
+    if (! m_instance->m_connectionPool_.contains(alias)) {
         QSsh::SshConnectionParameters params;
         params.host = QString::fromLatin1("localhost");
         params.userName = QString::fromLatin1("elvenfighter");
@@ -44,28 +48,52 @@ RemoteConnection::SharedPointer ConnectionManager::connectionForAlias(const QStr
 //        params.hostKeyDatabase = QSsh::SshHostKeyDatabasePtr::create();
 
         // FIXME: connection factory?
-        RemoteConnection::SharedPointer connection(new SftpConnection(alias, params, m_instance));
+        Connection::Ptr connection(new SftpConnection(alias, params, m_instance));
 
-        connect(connection.data(), &RemoteConnection::disconnected,
+        connect(connection.data(), &Connection::disconnected,
                 m_instance, &ConnectionManager::onDisconnected);
-        connect(connection.data(), &RemoteConnection::connectionError,
+        connect(connection.data(), &Connection::error,
                 m_instance, &ConnectionManager::onConnectionError);
 
-        m_instance->m_connectionPool.insert(alias, connection);
+        m_instance->m_connectionPool_.insert(alias, connection);
     }
     locker.unlock();
 
-    return m_instance->m_connectionPool.value(alias);
+    return m_instance->m_connectionPool_.value(alias);
 }
+
+Connection::Ptr ConnectionManager::connectionForDevice(const ProjectExplorer::IDevice *device)
+{
+    Connection::Ptr connection(nullptr);
+
+    QMutexLocker locker(&m_instance->m_connectionPoolMutex);
+    if (! m_instance->m_connectionPool.contains(device->id())) {
+        QSsh::SshConnectionParameters params = device->sshParameters();
+
+        // Defaul localhost device has invalid parameters!
+        // TODO: test if Localhost device works
+        if (!params.host.isEmpty() && params.port != 0) {
+            connection = Connection::Ptr(new SftpConnection(device->displayName(), params));
+            m_instance->m_connectionPool.insert(device->id(), connection);
+        }
+    } else {
+        connection = m_instance->m_connectionPool.value(device->id());
+    }
+    locker.unlock();
+
+    return connection;
+}
+
+//Connection::Ptr ConnectionManager::connectionForAlias()
 
 void ConnectionManager::onDisconnected()
 {
-    RemoteConnection::SharedPointer connection(qobject_cast<RemoteConnection *>(sender()));
+    Connection::Ptr connection(qobject_cast<Connection *>(sender()));
     emit disconnected(connection);
 }
 
 void ConnectionManager::onConnectionError()
 {
-    RemoteConnection::SharedPointer connection(qobject_cast<RemoteConnection *>(sender()));
+    Connection::Ptr connection(qobject_cast<Connection *>(sender()));
     emit connectionError(connection);
 }

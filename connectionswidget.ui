@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <ui version="4.0">
- <class>RemoteDev::Internal::RemoteOptionsWidget</class>
- <widget class="QWidget" name="RemoteDev::Internal::RemoteOptionsWidget">
+ <class>RemoteDev::Internal::ConnectionsWidget</class>
+ <widget class="QWidget" name="RemoteDev::Internal::ConnectionsWidget">
   <property name="geometry">
    <rect>
     <x>0</x>
@@ -37,14 +37,14 @@
        <item>
         <widget class="QPushButton" name="removeAliasButton">
          <property name="text">
-          <string>PushButton</string>
+          <string>Add</string>
          </property>
         </widget>
        </item>
        <item>
         <widget class="QPushButton" name="newAliasButton">
          <property name="text">
-          <string>PushButton</string>
+          <string>Remove</string>
          </property>
         </widget>
        </item>
@@ -85,7 +85,7 @@
       </layout>
      </item>
      <item>
-      <widget class="QWidget" name="widget" native="true">
+      <widget class="QStackedWidget" name="widgetSettings">
        <property name="sizePolicy">
         <sizepolicy hsizetype="Expanding" vsizetype="Expanding">
          <horstretch>4</horstretch>
