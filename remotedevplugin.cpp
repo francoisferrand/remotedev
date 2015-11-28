@@ -291,9 +291,9 @@ void RemoteDevPlugin::createProjectSettingsPage()
 
             QObject *obj = qobject_cast<QObject *>(project);
 
-            // FIXME at version 3.5.1 project argument is unusable
+            // FIXME at version 3.5.1 'project' argument is unusable
             // have to work around...
-            qDebug() << "creating panel for:" << project->displayName();
+            // qDebug() << "creating panel for:" << project->displayName();
 
             auto widget = new ProjectSettingsWidget(project);
             panel->setWidget(widget);
