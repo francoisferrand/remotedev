@@ -20,16 +20,18 @@
 #include <projectexplorer/devicesupport/devicemanager.h>
 #include <projectexplorer/project.h>
 #include <projectexplorer/session.h>
+#include <projectexplorer/projectpanelfactory.h>
 
 #include "connectionmanager.h"
 #include "connectionspage.h"
 #include "connection/sftpoptionspage.h"
+#include "projectsettingswidget.h"
 
 using namespace RemoteDev::Internal;
 
-using Core::EditorManager;
-using Core::ActionManager;
-using Core::MessageManager;
+//using Core::EditorManager;
+//using Core::ActionManager;
+//using Core::MessageManager;
 
 RemoteDevPlugin::RemoteDevPlugin()
 {
@@ -69,17 +71,19 @@ bool RemoteDevPlugin::initialize(const QStringList &arguments, QString *errorStr
     Core::ActionManager::actionContainer(Core::Constants::M_TOOLS)->addMenu(menu);
 
     // NOTE: currentEditorChanged is also triggered upon editorOpened
-    EditorManager *editorManager = EditorManager::instance();
-//    connect(editorManager, SIGNAL(editorOpened(Core::IEditor*)), this, SLOT(onEditorOpened(Core::IEditor*)));
+    auto *editorManager = Core::EditorManager::instance();
+    // connect(editorManager, SIGNAL(editorOpened(Core::IEditor*)), this, SLOT(onEditorOpened(Core::IEditor*)));
     connect(editorManager, SIGNAL(currentEditorChanged(Core::IEditor*)), this, SLOT(onEditorOpened(Core::IEditor*)));
 
-    QAction *saveAction = ActionManager::command(Core::Constants::SAVE)->action();
+    QAction *saveAction = Core::ActionManager::command(Core::Constants::SAVE)->action();
     connect(saveAction, SIGNAL(triggered(bool)), this, SLOT(onSaveAction()));
 
     ConnectionManager *connectionManager = ConnectionManager::instance();
-    connect(connectionManager, &ConnectionManager::connectionError, this, &RemoteDevPlugin::onConnectionError);
+    connect(connectionManager, &ConnectionManager::connectionError,
+            this, &RemoteDevPlugin::onConnectionError);
 
     createOptionsPage();
+    createProjectSettingsPage();
 
     return true;
 }
@@ -124,7 +128,7 @@ ExtensionSystem::IPlugin::ShutdownFlag RemoteDevPlugin::aboutToShutdown()
 
 void RemoteDevPlugin::uploadCurrentDocument()
 {
-    Core::IDocument *document = EditorManager::currentDocument();
+    Core::IDocument *document = Core::EditorManager::currentDocument();
     if (! document) return;
 
     const auto &local = document->filePath();
@@ -193,7 +197,7 @@ void RemoteDevPlugin::uploadCurrentDocument()
 
 void RemoteDevPlugin::uploadCurrentDocument1()
 {
-    Core::IDocument *document = EditorManager::currentDocument();
+    Core::IDocument *document = Core::EditorManager::currentDocument();
 
     if (document) {
         QString name = document->displayName();
@@ -269,9 +273,46 @@ void RemoteDevPlugin::createOptionsPage()
     addAutoReleasedObject(m_optionsPage);
 }
 
+#include <QDebug>
+
+void RemoteDevPlugin::createProjectSettingsPage()
+{
+    auto panelFactory = new ProjectExplorer::ProjectPanelFactory();
+    panelFactory->setPriority(100); // FIXME: what does this do?
+    panelFactory->setDisplayName(tr("RemoteDev"));
+
+//    QIcon icon /* = QIcon(QLatin1String(":/projectexplorer/images/EditorSettings.png")) */;
+//    panelFactory->setSimpleCreateWidgetFunction<ProjectSettingsWidget>(icon);
+
+    panelFactory->setCreateWidgetFunction(
+        [this, panelFactory] (ProjectExplorer::Project *project) -> QWidget * {
+            auto panel = new ProjectExplorer::PropertiesPanel ();
+            panel->setDisplayName(panelFactory->displayName());
+
+            QObject *obj = qobject_cast<QObject *>(project);
+
+            // FIXME at version 3.5.1 project argument is unusable
+            // have to work around...
+            qDebug() << "creating panel for:" << project->displayName();
+
+            auto widget = new ProjectSettingsWidget(project);
+            panel->setWidget(widget);
+
+            auto panelsWidget = new ProjectExplorer::PanelsWidget();
+            panelsWidget->addPropertiesPanel(panel);
+            panelsWidget->setFocusProxy(widget);
+
+            return panelsWidget;
+        }
+    );
+
+
+    ProjectExplorer::ProjectPanelFactory::registerFactory(panelFactory);
+}
+
 void RemoteDevPlugin::showDebug(const QString &string) const
 {
-    MessageManager *messageManager = qobject_cast<MessageManager *>(MessageManager::instance());
-    messageManager->write(string, { MessageManager::NoModeSwitch });
+    auto *messageManager = qobject_cast<Core::MessageManager *>(Core::MessageManager::instance());
+    messageManager->write(string, { Core::MessageManager::NoModeSwitch });
 }
 

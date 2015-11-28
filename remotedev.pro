@@ -10,7 +10,8 @@ SOURCES += remotedevplugin.cpp \
     connectionspage.cpp \
     iconnectionoptionspage.cpp \
     connection/sftpsettingswidget.cpp \
-    connection/sftpoptionspage.cpp
+    connection/sftpoptionspage.cpp \
+    projectsettingswidget.cpp
 
 HEADERS += remotedevplugin.h \
         remotedev_global.h \
@@ -23,7 +24,8 @@ HEADERS += remotedevplugin.h \
     iconnectionoptionspage.h \
     connection/sftpsettingswidget.h \
     connection/sftpoptionspage.h \
-    connectionconstants.h
+    connectionconstants.h \
+    projectsettingswidget.h
 
 CONFIG += C++11
 
@@ -51,5 +53,6 @@ include($$QTCREATOR_SOURCES/src/qtcreatorplugin.pri)
 
 FORMS += \
     connectionswidget.ui \
-    connection/sftpsettingswidget.ui
+    connection/sftpsettingswidget.ui \
+    projectsettingswidget.ui
 

@@ -14,8 +14,13 @@ const char ACTION_ID[] = "RemoteDev.Action";
 const char MENU_ID[] = "RemoteDev.Menu";
 /**
  * @brief SETTINGS_GROUP plugin's group in QtCreator's settings object
+ * Also, used in ProjectExplorer's Project settings
  */
 const char SETTINGS_GROUP[] = "RemoteDev";
+/**
+ * @brief MAPPINGS_GROUP subsection which stores remote mappings for project
+ */
+const char MAPPINGS_GROUP[] = "Mappings";
 
 } // namespace RemoteDev
 } // namespace Constants
