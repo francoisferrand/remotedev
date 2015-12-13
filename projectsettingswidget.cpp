@@ -132,7 +132,7 @@ void ProjectSettingsWidget::initData()
     qDebug() << "Initializing project settings:" << m_project->displayName();
 
     auto settings = m_project->namedSettings(QLatin1String(Constants::SETTINGS_GROUP)).toMap();
-    auto section = settings.value(QLatin1String(Constants::MAPPINGS_GROUP)).toMap();
+    auto mappings = settings.value(QLatin1String(Constants::MAPPINGS_GROUP)).toList();
 
     qDebug() << "Settings:" << settings;
 
@@ -140,10 +140,12 @@ void ProjectSettingsWidget::initData()
     //auto model = qobject_cast<QStandardItemModel *>(ui->tblMappings->model());
     //model->clear();
 
-    for (auto &name : section.keys()) {
-        qDebug() << "Restoring mapping" << name;
-        auto config = section.value(name).toMap();
+    for (auto &mapping : mappings) {
+        auto config = mapping.toMap();
 
+        qDebug() << "Restoring mapping:" << config[QStringLiteral("name")].toString();
+
+        // TODO: check if device exists
         this->createMapping(config[QStringLiteral("name")].toString(),
                             config[QStringLiteral("enabled")].toBool(),
                             Core::Id::fromSetting(config[QStringLiteral("device")]),
@@ -155,23 +157,18 @@ void ProjectSettingsWidget::saveSettings()
 {
     qDebug() << "Saving mappings for" << m_project->displayName();
 
-    QVariantMap mappings;
+    QVariantList mappings;
     auto model = qobject_cast<QStandardItemModel *>(ui->tblMappings->model());
     for (int i = 0; i < model->rowCount(); i++) {
         const auto &name = model->item(i, 0)->text();
 
         qDebug() << "Saving mapping:" << name;
-
-        // FIXME: name is supposed to be unique?
-        mappings[name] = QVariantMap({
+        mappings.append(QVariantMap({
             { QStringLiteral("name"),    name },
             { QStringLiteral("enabled"), model->item(i, 1)->data(Qt::CheckStateRole) },
-            // FIXME: are device ID's fixed?
             { QStringLiteral("device"),  model->item(i, 2)->data(Constants::DEV_ID_ROLE) },
             { QStringLiteral("path"),    model->item(i, 3)->text() }
-        });
-
-        // TODO: check if device exists
+        }));
     }
 
     auto settings = m_project->namedSettings(QLatin1String(Constants::SETTINGS_GROUP)).toMap();
