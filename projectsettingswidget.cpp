@@ -2,15 +2,70 @@
 #include "ui_projectsettingswidget.h"
 
 #include <QStandardItemModel>
-//#include <QItemDelegate> // TBD: which one to use?
 #include <QStyledItemDelegate>
 #include <QDataWidgetMapper>
 
-#include <QDebug>
-
 #include "remotedevconstants.h"
 
+#include <QDebug>
+
 using namespace RemoteDev::Internal;
+
+class MappingSettingsDelegate : public QStyledItemDelegate
+{
+public:
+    MappingSettingsDelegate(Ui::ProjectSettingsWidget *ui,
+                            QObject *parent = 0) :
+        QStyledItemDelegate(parent),
+        ui(ui)
+    {}
+
+    void setEditorData(QWidget *editor, const QModelIndex &index) const
+    {
+        if (editor == qobject_cast<QWidget *>(ui->cbxDevice)) {
+            auto idStr = index.data().toString();
+
+            auto model = qobject_cast<QStandardItemModel *>(ui->cbxDevice->model());
+            auto items = model->findItems(idStr, Qt::MatchExactly,
+                                          RemoteDev::Constants::DEV_ID_COLUMN);
+            if (items.count() > 0) {
+                qDebug() << "setEditorData(cbxDevice):" << idStr << "index:" << items.at(0)->row();
+                // FIXME: warn if items.count() > 1
+                ui->cbxDevice->setCurrentIndex(items.at(0)->row());
+            } else {
+                qDebug() << "setEditorData(cbxDevice): -1";
+                ui->cbxDevice->setCurrentIndex(-1); // clear the combo
+            }
+        } else {
+            QStyledItemDelegate::setEditorData(editor, index);
+        }
+    }
+
+    void setModelData(QWidget *editor,
+                      QAbstractItemModel *model,
+                      const QModelIndex &index) const
+    {
+        if (editor == qobject_cast<QWidget *>(ui->cbxDevice)) {
+            auto id = qobject_cast<QStandardItemModel *>(ui->cbxDevice->model())
+                        ->item(ui->cbxDevice->currentIndex(),
+                               RemoteDev::Constants::DEV_ID_COLUMN)
+                        ->data(RemoteDev::Constants::DEV_ID_ROLE);
+
+            qDebug() << "setModelData(cbxDevice):" << id;
+
+            auto item = qobject_cast<QStandardItemModel *>(model)->itemFromIndex(index);
+            if (id.isValid()) {
+                item->setText(id.toString());
+                item->setData(id, RemoteDev::Constants::DEV_ID_ROLE);
+            }
+        } else {
+            QStyledItemDelegate::setModelData(editor, model, index);
+        }
+    }
+
+private:
+    Ui::ProjectSettingsWidget *ui;
+};
 
 ProjectSettingsWidget::ProjectSettingsWidget(ProjectExplorer::Project *prj) :
     ui(new Ui::ProjectSettingsWidget),
@@ -22,7 +77,8 @@ ProjectSettingsWidget::ProjectSettingsWidget(ProjectExplorer::Project *prj) :
     auto model = new QStandardItemModel(0, Constants::MAP_COLUMNS_COUNT);
 
     m_mapper->setModel(model);
-    // FIXME: implement devices model
+    m_mapper->setItemDelegate(new MappingSettingsDelegate(ui, m_mapper));
+
     m_mapper->addMapping(ui->cbxDevice, Constants::MAP_DEVICE_COLUMN);
     m_mapper->addMapping(ui->edtPath, Constants::MAP_PATH_COLUMN);
     m_mapper->setSubmitPolicy(QDataWidgetMapper::AutoSubmit);
@@ -53,11 +109,10 @@ void ProjectSettingsWidget::newMapping()
 {
     qDebug() << "new mapping for project:" << m_project->displayName();
 
-    static int i = 0;
-    this->createMapping(QStringLiteral("<new mapping>"),
+    this->createMapping(QStringLiteral("<mapping name>"),
                         true,
-                        QString(),
-                        QStringLiteral("test%1").arg(i++));
+                        Core::Id::fromString(QStringLiteral("<device>")),
+                        QStringLiteral("<path>"));
 }
 
 void ProjectSettingsWidget::removeMapping()
@@ -91,14 +146,14 @@ void ProjectSettingsWidget::initData()
 
         this->createMapping(config[QStringLiteral("name")].toString(),
                             config[QStringLiteral("enabled")].toBool(),
-                            config[QStringLiteral("device")].toString(),
+                            Core::Id::fromSetting(config[QStringLiteral("device")]),
                             config[QStringLiteral("path")].toString());
     }
 }
 
 void ProjectSettingsWidget::saveSettings()
 {
-    qDebug() << "Saving settings for" << m_project->displayName();
+    qDebug() << "Saving mappings for" << m_project->displayName();
 
     QVariantMap mappings;
     auto model = qobject_cast<QStandardItemModel *>(ui->tblMappings->model());
@@ -112,9 +167,11 @@ void ProjectSettingsWidget::saveSettings()
             { QStringLiteral("name"),    name },
             { QStringLiteral("enabled"), model->item(i, 1)->data(Qt::CheckStateRole) },
             // FIXME: are device ID's fixed?
-            { QStringLiteral("device"),  model->item(i, 2)->text() },
+            { QStringLiteral("device"),  model->item(i, 2)->data(Constants::DEV_ID_ROLE) },
             { QStringLiteral("path"),    model->item(i, 3)->text() }
         });
+
+        // TODO: check if device exists
     }
 
     auto settings = m_project->namedSettings(QLatin1String(Constants::SETTINGS_GROUP)).toMap();
@@ -127,15 +184,23 @@ QStandardItemModel * ProjectSettingsWidget::mappingsModel()
     return qobject_cast<QStandardItemModel *>(ui->tblMappings->model());
 }
 
+void ProjectSettingsWidget::setDevicesModel(QStandardItemModel *devices)
+{
+    ui->cbxDevice->setModel(devices);
+    ui->cbxDevice->setModelColumn(Constants::DEV_NAME_COLUMN);
+    ui->cbxDevice->setCurrentIndex(-1); // clear the combo
+}
+
 void ProjectSettingsWidget::createMapping(const QString &name, bool enabled,
-                                          const QString &device, const QString &path)
+                                          const Core::Id &device, const QString &path)
 {
     auto nameItem = new QStandardItem(name);
 
     auto enabledItem = new QStandardItem();
     enabledItem->setData(enabled, Qt::CheckStateRole);
 
-    auto deviceItem = new QStandardItem(device);
+    auto deviceItem = new QStandardItem(device.toString());
+    deviceItem->setData(device.toSetting(), Constants::DEV_ID_ROLE);
 
     auto pathItem = new QStandardItem(path);
 

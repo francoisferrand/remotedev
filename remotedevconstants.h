@@ -1,6 +1,8 @@
 #ifndef REMOTEDEVCONSTANTS_H
 #define REMOTEDEVCONSTANTS_H
 
+#include <Qt>
+
 namespace RemoteDev {
 namespace Constants {
 
@@ -31,6 +33,12 @@ const int  MAP_ENABLED_COLUMN = 1;
 const int  MAP_DEVICE_COLUMN  = 2;
 const int  MAP_PATH_COLUMN    = 3;
 const int  MAP_COLUMNS_COUNT  = 4;
+
+const int  DEV_NAME_COLUMN    = 0;
+const int  DEV_ID_COLUMN      = 1;
+const int  DEV_COLUMNS_COUNT  = 2;
+
+const int  DEV_ID_ROLE        = Qt::UserRole + 1;
 
 } // namespace RemoteDev
 } // namespace Constants

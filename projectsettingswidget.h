@@ -40,9 +40,10 @@ private slots:
 private:
     friend class RemoteDevPlugin;
     QStandardItemModel * mappingsModel();
+    void setDevicesModel(QStandardItemModel *devices);
 
     void createMapping(const QString &name, bool enabled,
-                       const QString &device, const QString &path);
+                       const Core::Id &device, const QString &path);
 
 private:
     Ui::ProjectSettingsWidget *ui;

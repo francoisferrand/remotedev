@@ -23,6 +23,8 @@
 #include <projectexplorer/session.h>
 #include <projectexplorer/projectpanelfactory.h>
 
+#include <ssh/sshconnection.h>
+
 #include "connectionmanager.h"
 #include "connectionspage.h"
 #include "connection/sftpoptionspage.h"
@@ -33,7 +35,8 @@
 using namespace RemoteDev::Internal;
 
 RemoteDevPlugin::RemoteDevPlugin() :
-    m_connManager(new ConnectionManager(this))
+    m_connManager(new ConnectionManager),
+    m_devices(new QStandardItemModel(0, Constants::DEV_COLUMNS_COUNT))
 {}
 
 RemoteDevPlugin::~RemoteDevPlugin()
@@ -41,6 +44,7 @@ RemoteDevPlugin::~RemoteDevPlugin()
     // Unregister objects from the plugin manager's object pool
     // Delete members
     delete m_connManager;
+    delete m_devices;
 }
 
 bool RemoteDevPlugin::initialize(const QStringList &arguments, QString *errorString)
@@ -103,8 +107,78 @@ bool RemoteDevPlugin::delayedInitialize()
     // Return true, if implemented
 
     // TODO: read configuration, create connections, install handlers
+    auto deviceMgr = ProjectExplorer::DeviceManager::instance();
 
-    return false;
+    auto insertDevice = [this] (ProjectExplorer::IDevice::ConstPtr device, bool append) {
+        auto nameItem = new QStandardItem(device->displayName());
+        auto idItem = new QStandardItem(device->id().toString());
+        idItem->setData(device->id().toSetting(), Constants::DEV_ID_ROLE);
+
+        if (append) {
+            this->m_devices->appendRow({ nameItem, idItem });
+        } else {
+            auto items = this->m_devices->findItems(device->id().toString(),
+                                                    Qt::MatchExactly, Constants::DEV_ID_COLUMN);
+            for (auto item : items) {
+                // replace all occurencies
+                this->m_devices->setItem(item->row(), Constants::DEV_NAME_COLUMN, nameItem);
+                this->m_devices->setItem(item->row(), Constants::DEV_ID_COLUMN, idItem);
+            }
+        }
+    };
+
+    // synchronize devices
+    connect(deviceMgr, &ProjectExplorer::DeviceManager::deviceAdded,
+        [this, deviceMgr, &insertDevice] (Core::Id id) {
+            auto device = deviceMgr->find(id);
+            if (! device.isNull()) {
+                qDebug() << "Adding device:" << device->displayName();
+                insertDevice(device, true);
+            }
+        }
+    );
+    connect(deviceMgr, &ProjectExplorer::DeviceManager::deviceUpdated,
+        [this, deviceMgr, &insertDevice] (Core::Id id) {
+            auto device = deviceMgr->find(id);
+            if (! device.isNull()) {
+                insertDevice(device, false);
+            }
+        }
+    );
+    connect(deviceMgr, &ProjectExplorer::DeviceManager::deviceRemoved,
+        [this, deviceMgr] (Core::Id id) {
+            auto items = this->m_devices
+                    ->findItems(id.toString(), Qt::MatchExactly, Constants::DEV_ID_COLUMN);
+            for (auto idItem : items) {
+                auto nameItem = this->m_devices->item(idItem->row(),
+                                                      Constants::DEV_NAME_COLUMN);
+                qDebug() << "Removing device:" << nameItem->text();
+                if (items.count() > 1) {
+                    const auto tmpl = QStringLiteral("WARNING: ambiguous removed device %1 (%2)");
+                    showDebug(tmpl.arg(nameItem->text(), idItem->text()));
+                }
+
+                this->m_devices->removeRow(idItem->row());
+                break; // more than one removal is not allowed here
+            }
+        }
+    );
+
+    // add items that are present now
+    for (int i = 0; i < deviceMgr->deviceCount(); i++) {
+        auto device = deviceMgr->deviceAt(i);
+
+        // FIXME: make sure that device can receive files
+        auto params = device->sshParameters();
+        if (params.host.isEmpty() || params.port == 0) {
+            continue;
+        }
+
+        qDebug() << "Restoring device:" << device->displayName();
+        insertDevice(device, true);
+    }
+
+    return true;
 }
 
 ExtensionSystem::IPlugin::ShutdownFlag RemoteDevPlugin::aboutToShutdown()
@@ -124,9 +198,6 @@ ExtensionSystem::IPlugin::ShutdownFlag RemoteDevPlugin::aboutToShutdown()
 
     return SynchronousShutdown;
 }
-
-// FIXME: this is only for testing DeviceManager
-//#include <ssh/sshconnection.h>
 
 void RemoteDevPlugin::uploadCurrentDocument()
 {
@@ -294,7 +365,7 @@ void RemoteDevPlugin::createProjectSettingsPage()
             auto model = widget->mappingsModel();
             model->setParent(this); // remove all data when plugin is destroyed
             m_mappings[project->id()] = model;
-
+            widget->setDevicesModel(m_devices);
 
             panel->setWidget(widget);
 

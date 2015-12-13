@@ -65,6 +65,7 @@ private:
     ConnectionManager *m_connManager;
 
     QHash<Core::Id, QStandardItemModel *> m_mappings;
+    QStandardItemModel *m_devices;
 };
 
 } // namespace Internal
