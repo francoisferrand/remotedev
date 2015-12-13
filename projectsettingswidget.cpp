@@ -14,24 +14,25 @@ using namespace RemoteDev::Internal;
 
 ProjectSettingsWidget::ProjectSettingsWidget(ProjectExplorer::Project *prj) :
     ui(new Ui::ProjectSettingsWidget),
-    m_project(prj)
+    m_project(prj),
+    m_mapper(new QDataWidgetMapper(this))
 {
     ui->setupUi(this);
 
-    //  0   |    1    |   2    |  3
-    // name | enabled | device | path
-    auto model = new QStandardItemModel(0, 4, this);
+    auto model = new QStandardItemModel(0, Constants::MAP_COLUMNS_COUNT);
 
-    auto mapper = new QDataWidgetMapper(this);
-    mapper->setModel(model);
-//    mapper->addMapping(ui->cbxDevice, 2); // FIXME: how to make this work?
-    mapper->addMapping(ui->edtPath, 3);
-    mapper->setSubmitPolicy(QDataWidgetMapper::AutoSubmit);
+    m_mapper->setModel(model);
+    // FIXME: implement devices model
+    m_mapper->addMapping(ui->cbxDevice, Constants::MAP_DEVICE_COLUMN);
+    m_mapper->addMapping(ui->edtPath, Constants::MAP_PATH_COLUMN);
+    m_mapper->setSubmitPolicy(QDataWidgetMapper::AutoSubmit);
 
     ui->tblMappings->setModel(model);
+    ui->tblMappings->setColumnHidden(Constants::MAP_DEVICE_COLUMN, true);
+    ui->tblMappings->setColumnHidden(Constants::MAP_PATH_COLUMN, true);
 
-    connect(ui->tblMappings, &QTableView::activated,
-            mapper, &QDataWidgetMapper::setCurrentModelIndex);
+    connect(ui->tblMappings->selectionModel(), &QItemSelectionModel::currentRowChanged,
+            m_mapper, &QDataWidgetMapper::setCurrentModelIndex);
 
     connect(m_project, &ProjectExplorer::Project::aboutToSaveSettings,
             this, &ProjectSettingsWidget::saveSettings);
@@ -44,6 +45,7 @@ ProjectSettingsWidget::ProjectSettingsWidget(ProjectExplorer::Project *prj) :
 
 ProjectSettingsWidget::~ProjectSettingsWidget()
 {
+    delete m_mapper;
     delete ui;
 }
 
@@ -58,18 +60,31 @@ void ProjectSettingsWidget::newMapping()
                         QStringLiteral("test%1").arg(i++));
 }
 
+void ProjectSettingsWidget::removeMapping()
+{
+    auto model = qobject_cast<QStandardItemModel *>(ui->tblMappings->model());
+    auto indexes = ui->tblMappings->selectionModel()->selectedRows();
+
+    // UI restricts selection to one row at a time, but let's support more
+    for (const auto &index : indexes) {
+        model->removeRow(index.row());
+    }
+    // TODO: when no items left -> clear form
+}
+
 void ProjectSettingsWidget::initData()
 {
     qDebug() << "Initializing project settings:" << m_project->displayName();
 
-    // QVariantMap settings;
     auto settings = m_project->namedSettings(QLatin1String(Constants::SETTINGS_GROUP)).toMap();
     auto section = settings.value(QLatin1String(Constants::MAPPINGS_GROUP)).toMap();
 
     qDebug() << "Settings:" << settings;
 
-    auto model = qobject_cast<QStandardItemModel *>(ui->tblMappings->model());
-    model->clear();
+    // NOTE: lines below cause setColumnHidden() to lose effect
+    //auto model = qobject_cast<QStandardItemModel *>(ui->tblMappings->model());
+    //model->clear();
+
     for (auto &name : section.keys()) {
         qDebug() << "Restoring mapping" << name;
         auto config = section.value(name).toMap();
@@ -79,11 +94,6 @@ void ProjectSettingsWidget::initData()
                             config[QStringLiteral("device")].toString(),
                             config[QStringLiteral("path")].toString());
     }
-
-    // 2 visible columns: name, enabled
-    // FIXME: somehow this does not work when model is empty (in the constructor)
-    ui->tblMappings->setColumnHidden(2, true);
-    ui->tblMappings->setColumnHidden(3, true);
 }
 
 void ProjectSettingsWidget::saveSettings()
@@ -94,6 +104,9 @@ void ProjectSettingsWidget::saveSettings()
     auto model = qobject_cast<QStandardItemModel *>(ui->tblMappings->model());
     for (int i = 0; i < model->rowCount(); i++) {
         const auto &name = model->item(i, 0)->text();
+
+        qDebug() << "Saving mapping:" << name;
+
         // FIXME: name is supposed to be unique?
         mappings[name] = QVariantMap({
             { QStringLiteral("name"),    name },
@@ -109,7 +122,13 @@ void ProjectSettingsWidget::saveSettings()
     m_project->setNamedSettings(QLatin1String(Constants::SETTINGS_GROUP), settings);
 }
 
-void ProjectSettingsWidget::createMapping(const QString &name, bool enabled, const QString &device, const QString &path)
+QStandardItemModel * ProjectSettingsWidget::mappingsModel()
+{
+    return qobject_cast<QStandardItemModel *>(ui->tblMappings->model());
+}
+
+void ProjectSettingsWidget::createMapping(const QString &name, bool enabled,
+                                          const QString &device, const QString &path)
 {
     auto nameItem = new QStandardItem(name);
 

@@ -22,6 +22,16 @@ const char SETTINGS_GROUP[] = "RemoteDev";
  */
 const char MAPPINGS_GROUP[] = "Mappings";
 
+/**
+ * Column numbers for mappings data model
+ * @todo doxygen group
+ */
+const int  MAP_NAME_COLUMN    = 0;
+const int  MAP_ENABLED_COLUMN = 1;
+const int  MAP_DEVICE_COLUMN  = 2;
+const int  MAP_PATH_COLUMN    = 3;
+const int  MAP_COLUMNS_COUNT  = 4;
+
 } // namespace RemoteDev
 } // namespace Constants
 

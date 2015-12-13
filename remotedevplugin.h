@@ -12,14 +12,16 @@
 QT_BEGIN_NAMESPACE
 class QAction;
 class QTime;
+class QStandardItemModel;
 QT_END_NAMESPACE
 
-namespace Core { class IEditor; }
+namespace Core { class IEditor; class Id; }
 
 namespace RemoteDev {
 namespace Internal {
 
 class ConnectionsPage;
+class ConnectionManager;
 
 class RemoteDevPlugin : public ExtensionSystem::IPlugin
 {
@@ -59,8 +61,10 @@ private:
 
 private:
     ConnectionsPage *m_optionsPage;
-
     QHash<RemoteJobId, QSharedPointer<QTime>> m_timers;
+    ConnectionManager *m_connManager;
+
+    QHash<Core::Id, QStandardItemModel *> m_mappings;
 };
 
 } // namespace Internal

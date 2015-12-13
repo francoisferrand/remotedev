@@ -4,6 +4,7 @@
 #include <QAction>
 #include <QMenu>
 #include <QTime>
+#include <QStandardItemModel>
 
 #include <coreplugin/icore.h>
 #include <coreplugin/icontext.h>
@@ -27,22 +28,19 @@
 #include "connection/sftpoptionspage.h"
 #include "projectsettingswidget.h"
 
+#include <QDebug>
+
 using namespace RemoteDev::Internal;
 
-//using Core::EditorManager;
-//using Core::ActionManager;
-//using Core::MessageManager;
-
-RemoteDevPlugin::RemoteDevPlugin()
-{
-    (void) new ConnectionManager(this);
-}
+RemoteDevPlugin::RemoteDevPlugin() :
+    m_connManager(new ConnectionManager(this))
+{}
 
 RemoteDevPlugin::~RemoteDevPlugin()
 {
     // Unregister objects from the plugin manager's object pool
     // Delete members
-    delete ConnectionManager::instance();
+    delete m_connManager;
 }
 
 bool RemoteDevPlugin::initialize(const QStringList &arguments, QString *errorString)
@@ -58,10 +56,11 @@ bool RemoteDevPlugin::initialize(const QStringList &arguments, QString *errorStr
     Q_UNUSED(errorString)
 
     QAction *action = new QAction(tr("RemoteDev action"), this);
-    Core::Command *cmd = Core::ActionManager::registerAction(action, Constants::ACTION_ID,
-//                                                             Core::Context(Core::Constants::C_NAVIGATION_PANE)
-                                                             Core::Context(Core::Constants::C_GLOBAL)
-                                                             );
+    Core::Command *cmd = Core::ActionManager::registerAction(
+                action, Constants::ACTION_ID,
+                //Core::Context(Core::Constants::C_NAVIGATION_PANE)
+                Core::Context(Core::Constants::C_GLOBAL)
+    );
     cmd->setDefaultKeySequence(QKeySequence(tr("Ctrl+Alt+Meta+A")));
     connect(action, SIGNAL(triggered()), this, SLOT(triggerAction()));
 
@@ -70,13 +69,16 @@ bool RemoteDevPlugin::initialize(const QStringList &arguments, QString *errorStr
     menu->addAction(cmd);
     Core::ActionManager::actionContainer(Core::Constants::M_TOOLS)->addMenu(menu);
 
-    // NOTE: currentEditorChanged is also triggered upon editorOpened
     auto *editorManager = Core::EditorManager::instance();
-    // connect(editorManager, SIGNAL(editorOpened(Core::IEditor*)), this, SLOT(onEditorOpened(Core::IEditor*)));
-    connect(editorManager, SIGNAL(currentEditorChanged(Core::IEditor*)), this, SLOT(onEditorOpened(Core::IEditor*)));
+    // NOTE: currentEditorChanged is also triggered upon editorOpened
+    //connect(editorManager, &Core::EditorManager::editorOpened,
+    //        this, &RemoteDevPlugin::onEditorOpened);
+    connect(editorManager, &Core::EditorManager::currentEditorChanged,
+            this, &RemoteDevPlugin::onEditorOpened);
 
     QAction *saveAction = Core::ActionManager::command(Core::Constants::SAVE)->action();
-    connect(saveAction, SIGNAL(triggered(bool)), this, SLOT(onSaveAction()));
+    connect(saveAction, &QAction::triggered,
+            this, &RemoteDevPlugin::onSaveAction);
 
     ConnectionManager *connectionManager = ConnectionManager::instance();
     connect(connectionManager, &ConnectionManager::connectionError,
@@ -138,7 +140,7 @@ void RemoteDevPlugin::uploadCurrentDocument()
 
     // TODO: move this to initialize(), depend on ProjectExplorer
     auto projects = ProjectExplorer::SessionManager::projects();
-    for (auto &project : projects) {
+    for (auto project : projects) {
         Utils::FileName dir = project->projectDirectory();
         if (local.isChildOf(dir)) {
             // FIXME: only for debug
@@ -273,8 +275,6 @@ void RemoteDevPlugin::createOptionsPage()
     addAutoReleasedObject(m_optionsPage);
 }
 
-#include <QDebug>
-
 void RemoteDevPlugin::createProjectSettingsPage()
 {
     auto panelFactory = new ProjectExplorer::ProjectPanelFactory();
@@ -287,11 +287,15 @@ void RemoteDevPlugin::createProjectSettingsPage()
     panelFactory->setCreateWidgetFunction(
         [this, panelFactory] (ProjectExplorer::Project *project) -> QWidget * {
             auto panel = new ProjectExplorer::PropertiesPanel ();
-            panel->setDisplayName(panelFactory->displayName());
+            panel->setDisplayName(tr("Remote Mappings"));
 
-            // TODO: pass mapping model
             // TODO: pass devices model
             auto widget = new ProjectSettingsWidget(project);
+            auto model = widget->mappingsModel();
+            model->setParent(this); // remove all data when plugin is destroyed
+            m_mappings[project->id()] = model;
+
+
             panel->setWidget(widget);
 
             auto panelsWidget = new ProjectExplorer::PanelsWidget();
