@@ -5,6 +5,13 @@
 
 #include <ssh/sshconnection.h>
 
+/* Q_ENUM is only defined by Qt 5.5 */
+#ifndef Q_ENUM
+#define Q_ENUM(ENUM) \
+    friend constexpr const QMetaObject *qt_getEnumMetaObject(ENUM) noexcept { return &staticMetaObject; } \
+    friend constexpr const char *qt_getEnumName(ENUM) noexcept { return #ENUM; }
+#endif
+
 namespace RemoteDev {
 
 class SftpConnection : public Connection
