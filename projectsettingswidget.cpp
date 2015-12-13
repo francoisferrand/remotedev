@@ -10,8 +10,6 @@
 
 #include "remotedevconstants.h"
 
-//static const int myrole = Qt::UserRole + 1;
-
 using namespace RemoteDev::Internal;
 
 ProjectSettingsWidget::ProjectSettingsWidget(ProjectExplorer::Project *prj) :
@@ -53,20 +51,11 @@ void ProjectSettingsWidget::newMapping()
 {
     qDebug() << "new mapping for project:" << m_project->displayName();
 
-    auto model = qobject_cast<QStandardItemModel *>(ui->tblMappings->model());
-
-    auto nameItem = new QStandardItem(QStringLiteral("<new mapping>"));
-
-    auto enabledItem = new QStandardItem();
-    enabledItem->setData(true, Qt::CheckStateRole);
-
     static int i = 0;
-    auto test = QStringLiteral("test%1").arg(i++);
-
-    model->appendRow({
-        nameItem, enabledItem,
-        new QStandardItem(), new QStandardItem(test)
-    });
+    this->createMapping(QStringLiteral("<new mapping>"),
+                        true,
+                        QString(),
+                        QStringLiteral("test%1").arg(i++));
 }
 
 void ProjectSettingsWidget::initData()
@@ -82,17 +71,13 @@ void ProjectSettingsWidget::initData()
     auto model = qobject_cast<QStandardItemModel *>(ui->tblMappings->model());
     model->clear();
     for (auto &name : section.keys()) {
-        qDebug() << "Adding mapping" << name;
+        qDebug() << "Restoring mapping" << name;
         auto config = section.value(name).toMap();
 
-        auto nameItem    = new QStandardItem(config[QStringLiteral("name")].toString());
-        auto enabledItem = new QStandardItem();
-        enabledItem->setData(config[QStringLiteral("enabled")], Qt::CheckStateRole);
-
-        auto deviceItem  = new QStandardItem(config[QStringLiteral("device")].toString());
-        auto pathItem    = new QStandardItem(config[QStringLiteral("path")].toString());
-
-        model->appendRow({ nameItem, enabledItem, deviceItem, pathItem });
+        this->createMapping(config[QStringLiteral("name")].toString(),
+                            config[QStringLiteral("enabled")].toBool(),
+                            config[QStringLiteral("device")].toString(),
+                            config[QStringLiteral("path")].toString());
     }
 
     // 2 visible columns: name, enabled
@@ -122,4 +107,19 @@ void ProjectSettingsWidget::saveSettings()
     auto settings = m_project->namedSettings(QLatin1String(Constants::SETTINGS_GROUP)).toMap();
     settings[QLatin1String(Constants::MAPPINGS_GROUP)] = mappings;
     m_project->setNamedSettings(QLatin1String(Constants::SETTINGS_GROUP), settings);
+}
+
+void ProjectSettingsWidget::createMapping(const QString &name, bool enabled, const QString &device, const QString &path)
+{
+    auto nameItem = new QStandardItem(name);
+
+    auto enabledItem = new QStandardItem();
+    enabledItem->setData(enabled, Qt::CheckStateRole);
+
+    auto deviceItem = new QStandardItem(device);
+
+    auto pathItem = new QStandardItem(path);
+
+    auto model = qobject_cast<QStandardItemModel *>(ui->tblMappings->model());
+    model->appendRow({ nameItem, enabledItem, deviceItem, pathItem });
 }

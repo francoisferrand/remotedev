@@ -27,6 +27,10 @@ private slots:
     void saveSettings();
 
 private:
+    void createMapping(const QString &name, bool enabled,
+                       const QString &device, const QString &path);
+
+private:
     Ui::ProjectSettingsWidget *ui;
     ProjectExplorer::Project *m_project;
 };
