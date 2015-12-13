@@ -289,12 +289,8 @@ void RemoteDevPlugin::createProjectSettingsPage()
             auto panel = new ProjectExplorer::PropertiesPanel ();
             panel->setDisplayName(panelFactory->displayName());
 
-            QObject *obj = qobject_cast<QObject *>(project);
-
-            // FIXME at version 3.5.1 'project' argument is unusable
-            // have to work around...
-            // qDebug() << "creating panel for:" << project->displayName();
-
+            // TODO: pass mapping model
+            // TODO: pass devices model
             auto widget = new ProjectSettingsWidget(project);
             panel->setWidget(widget);
 
@@ -305,7 +301,6 @@ void RemoteDevPlugin::createProjectSettingsPage()
             return panelsWidget;
         }
     );
-
 
     ProjectExplorer::ProjectPanelFactory::registerFactory(panelFactory);
 }

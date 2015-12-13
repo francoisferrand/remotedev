@@ -24,7 +24,7 @@ public:
 private slots:
     void newMapping();
     void initData();
-    void handleSettings();
+    void saveSettings();
 
 private:
     Ui::ProjectSettingsWidget *ui;

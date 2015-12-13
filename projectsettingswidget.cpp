@@ -30,28 +30,18 @@ ProjectSettingsWidget::ProjectSettingsWidget(ProjectExplorer::Project *prj) :
     mapper->addMapping(ui->edtPath, 3);
     mapper->setSubmitPolicy(QDataWidgetMapper::AutoSubmit);
 
-    // 2 visible columns: name, enabled
     ui->tblMappings->setModel(model);
-    ui->tblMappings->setColumnHidden(2, true);
-    ui->tblMappings->setColumnHidden(3, true);
 
     connect(ui->tblMappings, &QTableView::activated,
             mapper, &QDataWidgetMapper::setCurrentModelIndex);
 
-    // FIXME: somehow project has invalid pointer
+    connect(m_project, &ProjectExplorer::Project::aboutToSaveSettings,
+            this, &ProjectSettingsWidget::saveSettings);
 
-//    qDebug() << "creating settings for:" << m_project->displayName();
-
-//    connect(m_project, &ProjectExplorer::Project::settingsLoaded,
-//            [project] () -> void {
-//                qDebug() << "settings loaded:" << project->displayName();
-//            });
-
-//    connect(m_project, SIGNAL(settingsLoaded()), this, SLOT(handleSettings()));
-
-//    connect(m_project, &ProjectExplorer::Project::settingsLoaded,
-//            this, &ProjectSettingsWidget::initData);
-    // TBD: connect(project, settinsLoaded, this, initData)
+    // TBD: is this required?
+    //connect(m_project, &ProjectExplorer::Project::settingsLoaded,
+    //        this, &ProjectSettingsWidget::initData);
+    this->initData();
 }
 
 ProjectSettingsWidget::~ProjectSettingsWidget()
@@ -73,48 +63,63 @@ void ProjectSettingsWidget::newMapping()
     static int i = 0;
     auto test = QStringLiteral("test%1").arg(i++);
 
-    model->appendRow({ nameItem, enabledItem, new QStandardItem(), new QStandardItem(test) });
+    model->appendRow({
+        nameItem, enabledItem,
+        new QStandardItem(), new QStandardItem(test)
+    });
 }
 
 void ProjectSettingsWidget::initData()
 {
-    auto model = qobject_cast<QStandardItemModel *>(ui->tblMappings->model());
-
-    qDebug() << "Project settings loaded:" << m_project->displayName();
+    qDebug() << "Initializing project settings:" << m_project->displayName();
 
     // QVariantMap settings;
     auto settings = m_project->namedSettings(QLatin1String(Constants::SETTINGS_GROUP)).toMap();
     auto section = settings.value(QLatin1String(Constants::MAPPINGS_GROUP)).toMap();
 
+    qDebug() << "Settings:" << settings;
 
-    for (auto &mapping : section.keys()) {
-        auto mapSettings = section.value(mapping).toMap();
+    auto model = qobject_cast<QStandardItemModel *>(ui->tblMappings->model());
+    model->clear();
+    for (auto &name : section.keys()) {
+        qDebug() << "Adding mapping" << name;
+        auto config = section.value(name).toMap();
 
-//        if (! key.startsWith(prefix))
-//            continue;
+        auto nameItem    = new QStandardItem(config[QStringLiteral("name")].toString());
+        auto enabledItem = new QStandardItem();
+        enabledItem->setData(config[QStringLiteral("enabled")], Qt::CheckStateRole);
 
-//        auto nameItem = new QStandardItem(key.section('.', 1, 1));
+        auto deviceItem  = new QStandardItem(config[QStringLiteral("device")].toString());
+        auto pathItem    = new QStandardItem(config[QStringLiteral("path")].toString());
 
-
-//        auto enableItem = new QStandardItem();
-//        enableItem->setDa
-
-//        auto combo = new QComboBox();
-//        combo->setAutoFillBackground(true);
-//        auto itemWidget = new QStyledItemDelegate();
-
-//        ui->tblMappings->setIndexWidget(model->indexFromItem(item), itemWidget);
-//        auto item = new QStandardItem()
-
-//        model->appendRow({ nameItem, enabledItem });
+        model->appendRow({ nameItem, enabledItem, deviceItem, pathItem });
     }
 
-    // TODO: use QDataWidgetMapper
-
-    //    m_project->setNamedSettings(Constants::SETTINGS_GROUP, settigs);
+    // 2 visible columns: name, enabled
+    // FIXME: somehow this does not work when model is empty (in the constructor)
+    ui->tblMappings->setColumnHidden(2, true);
+    ui->tblMappings->setColumnHidden(3, true);
 }
 
-void ProjectSettingsWidget::handleSettings()
+void ProjectSettingsWidget::saveSettings()
 {
+    qDebug() << "Saving settings for" << m_project->displayName();
 
+    QVariantMap mappings;
+    auto model = qobject_cast<QStandardItemModel *>(ui->tblMappings->model());
+    for (int i = 0; i < model->rowCount(); i++) {
+        const auto &name = model->item(i, 0)->text();
+        // FIXME: name is supposed to be unique?
+        mappings[name] = QVariantMap({
+            { QStringLiteral("name"),    name },
+            { QStringLiteral("enabled"), model->item(i, 1)->data(Qt::CheckStateRole) },
+            // FIXME: are device ID's fixed?
+            { QStringLiteral("device"),  model->item(i, 2)->text() },
+            { QStringLiteral("path"),    model->item(i, 3)->text() }
+        });
+    }
+
+    auto settings = m_project->namedSettings(QLatin1String(Constants::SETTINGS_GROUP)).toMap();
+    settings[QLatin1String(Constants::MAPPINGS_GROUP)] = mappings;
+    m_project->setNamedSettings(QLatin1String(Constants::SETTINGS_GROUP), settings);
 }
