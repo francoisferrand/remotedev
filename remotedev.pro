@@ -37,7 +37,8 @@ isEmpty(QTCREATOR_SOURCES):QTCREATOR_SOURCES=/home/elvenfighter/Projects/qt-crea
 
 ## set the QTC_BUILD environment variable to override the setting here
 IDE_BUILD_TREE = $$(QTC_BUILD)
-isEmpty(IDE_BUILD_TREE):IDE_BUILD_TREE=/home/elvenfighter/Programs/QtTest/Tools/QtCreator
+#isEmpty(IDE_BUILD_TREE):IDE_BUILD_TREE=/home/elvenfighter/Programs/QtTest/Tools/QtCreator
+isEmpty(IDE_BUILD_TREE):IDE_BUILD_TREE=/home/elvenfighter/Projects/qt-creator-build
 
 ## uncomment to build plugin into user config directory
 ## <localappdata>/plugins/<ideversion>
