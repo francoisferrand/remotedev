@@ -29,7 +29,7 @@
 #include "connectionspage.h"
 #include "connection/sftpoptionspage.h"
 #include "projectsettingswidget.h"
-#include "deviceshelper.h"
+#include "devicemanager.h"
 #include "mappingsmanager.h"
 
 #include <QDebug>
@@ -39,7 +39,7 @@ using namespace RemoteDev::Internal;
 RemoteDevPlugin::RemoteDevPlugin() :
     m_connManager(new ConnectionManager),
     m_mapManager(new MappingsManager),
-    m_devices(new QStandardItemModel(0, Constants::DEV_COLUMNS_COUNT))
+    m_devManager(new DeviceManager)
 {}
 
 RemoteDevPlugin::~RemoteDevPlugin()
@@ -48,7 +48,7 @@ RemoteDevPlugin::~RemoteDevPlugin()
     // Delete members
     delete m_connManager;
     delete m_mapManager;
-    delete m_devices;
+    delete m_devManager;
 }
 
 bool RemoteDevPlugin::initialize(const QStringList &arguments, QString *errorString)
@@ -110,8 +110,7 @@ bool RemoteDevPlugin::delayedInitialize()
     // Perforn non-trivial startup sequence after application startup
     // Return true, if implemented
 
-    auto helper = new DevicesHelper(m_devices, this);
-    helper->startDeviceSync();
+    m_devManager->startDeviceSync();
 
     return true;
 }
@@ -251,7 +250,7 @@ void RemoteDevPlugin::createProjectSettingsPage()
             auto widget = new ProjectSettingsWidget(project);
 
             widget->setMappingsModel(m_mapManager->mappingsForProject(project));
-            widget->setDevicesModel(m_devices);
+            widget->setDevicesModel(m_devManager->devices());
 
             panel->setWidget(widget);
 

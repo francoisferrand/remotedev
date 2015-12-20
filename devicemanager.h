@@ -15,21 +15,19 @@ QT_END_NAMESPACE
 namespace RemoteDev {
 namespace Internal {
 
-class RemoteDevPlugin;
-
 /**
- * @brief The DeviceSyncHelper class
- * Utility class for keeping devices synchronized between Devicemanager and
- * plugin's internal storage
+ * @brief The DeviceManager class
+ * Utility class for keeping devices synchronized between
+ * ProjectExplorer::Devicemanager and plugin's internal storage
  */
-class DeviceSyncHelper : public QObject
+class DeviceManager : public QObject
 {
     Q_OBJECT
-private:
-    friend class RemoteDevPlugin;
+public:
+    explicit DeviceManager(QObject *parent = 0);
 
-    explicit DeviceSyncHelper(QStandardItemModel *devices, QObject *parent = 0);
     void startDeviceSync();
+    QStandardItemModel *devices() const;
 
 private slots:
     void onDeviceAdded(Core::Id id);

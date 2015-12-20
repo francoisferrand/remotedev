@@ -3,16 +3,17 @@
 
 #include "remotedev_global.h"
 
+#include <QHash>
+
 #include <extensionsystem/iplugin.h>
 
 #include "connection.h"
 
 QT_BEGIN_NAMESPACE
 class QTime;
-class QStandardItemModel;
 QT_END_NAMESPACE
 
-namespace Core { class IEditor; class Id; }
+namespace Core { class IEditor; }
 
 namespace RemoteDev {
 namespace Internal {
@@ -20,6 +21,7 @@ namespace Internal {
 class ConnectionsPage;
 class ConnectionManager;
 class MappingsManager;
+class DeviceManager;
 
 class RemoteDevPlugin : public ExtensionSystem::IPlugin
 {
@@ -63,8 +65,7 @@ private:
 
     ConnectionManager *m_connManager;
     MappingsManager   *m_mapManager;
-
-    QStandardItemModel *m_devices;
+    DeviceManager     *m_devManager;
 };
 
 } // namespace Internal

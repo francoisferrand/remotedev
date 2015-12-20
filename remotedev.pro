@@ -12,8 +12,8 @@ SOURCES += remotedevplugin.cpp \
     connection/sftpsettingswidget.cpp \
     connection/sftpoptionspage.cpp \
     projectsettingswidget.cpp \
-    devicesynchelper.cpp \
-    mappingsmanager.cpp
+    mappingsmanager.cpp \
+    devicemanager.cpp
 
 HEADERS += remotedevplugin.h \
         remotedev_global.h \
@@ -28,8 +28,8 @@ HEADERS += remotedevplugin.h \
     connection/sftpoptionspage.h \
     connectionconstants.h \
     projectsettingswidget.h \
-    devicesynchelper.h \
-    mappingsmanager.h
+    mappingsmanager.h \
+    devicemanager.h
 
 CONFIG += C++11
 

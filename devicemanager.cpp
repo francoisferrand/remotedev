@@ -1,4 +1,4 @@
-#include "devicesynchelper.h"
+#include "devicemanager.h"
 
 #include <QStandardItemModel>
 
@@ -8,32 +8,37 @@
 
 using namespace RemoteDev::Internal;
 
-DeviceSyncHelper::DeviceSyncHelper(QStandardItemModel *devices, QObject *parent) :
+DeviceManager::DeviceManager(QObject *parent) :
     QObject(parent),
-    m_devices(devices)
+    m_devices(new QStandardItemModel(0, Constants::DEV_COLUMNS_COUNT, this))
 {}
 
-void DeviceSyncHelper::startDeviceSync()
+void DeviceManager::startDeviceSync()
 {
     auto deviceMgr = ProjectExplorer::DeviceManager::instance();
 
     connect(deviceMgr, &ProjectExplorer::DeviceManager::deviceAdded,
-            this, &DeviceSyncHelper::onDeviceAdded);
+            this, &DeviceManager::onDeviceAdded);
 
     connect(deviceMgr, &ProjectExplorer::DeviceManager::deviceUpdated,
-            this, &DeviceSyncHelper::onDeviceUpdated);
+            this, &DeviceManager::onDeviceUpdated);
 
     connect(deviceMgr, &ProjectExplorer::DeviceManager::deviceRemoved,
-            this, &DeviceSyncHelper::onDeviceRemoved);
+            this, &DeviceManager::onDeviceRemoved);
 
     connect(deviceMgr, &ProjectExplorer::DeviceManager::deviceListReplaced,
-            this, &DeviceSyncHelper::onDeviceListReplaced);
+            this, &DeviceManager::onDeviceListReplaced);
 
     // FIXME: should I handle &ProjectExplorer::DeviceManager::updated?
     onDeviceListReplaced();
 }
 
-void DeviceSyncHelper::onDeviceAdded(Core::Id id)
+QStandardItemModel *DeviceManager::devices() const
+{
+    return m_devices;
+}
+
+void DeviceManager::onDeviceAdded(Core::Id id)
 {
     auto device = ProjectExplorer::DeviceManager::instance()->find(id);
     if (! device.isNull()) {
@@ -41,7 +46,7 @@ void DeviceSyncHelper::onDeviceAdded(Core::Id id)
     }
 }
 
-void DeviceSyncHelper::onDeviceUpdated(Core::Id id)
+void DeviceManager::onDeviceUpdated(Core::Id id)
 {
     auto device = ProjectExplorer::DeviceManager::instance()->find(id);
     if (! device.isNull()) {
@@ -57,7 +62,7 @@ void DeviceSyncHelper::onDeviceUpdated(Core::Id id)
     }
 }
 
-void DeviceSyncHelper::onDeviceRemoved(Core::Id id)
+void DeviceManager::onDeviceRemoved(Core::Id id)
 {
     auto items = m_devices->findItems(id.toString(),
                                       Qt::MatchExactly, Constants::DEV_ID_COLUMN);
@@ -68,7 +73,7 @@ void DeviceSyncHelper::onDeviceRemoved(Core::Id id)
 }
 
 // bulk update or initialization
-void DeviceSyncHelper::onDeviceListReplaced()
+void DeviceManager::onDeviceListReplaced()
 {
     auto deviceMgr = ProjectExplorer::DeviceManager::instance();
 
@@ -81,12 +86,12 @@ void DeviceSyncHelper::onDeviceListReplaced()
     }
 }
 
-QStandardItem *DeviceSyncHelper::createNameItem(ProjectExplorer::IDevice::ConstPtr device)
+QStandardItem *DeviceManager::createNameItem(ProjectExplorer::IDevice::ConstPtr device)
 {
     return new QStandardItem(device->displayName());
 }
 
-QStandardItem *DeviceSyncHelper::createIdItem(ProjectExplorer::IDevice::ConstPtr device)
+QStandardItem *DeviceManager::createIdItem(ProjectExplorer::IDevice::ConstPtr device)
 {
     auto idItem = new QStandardItem(device->id().toString()); // string needed for lookup
     idItem->setData(device->id().toSetting(), RemoteDev::Constants::DEV_ID_ROLE);
