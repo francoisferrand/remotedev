@@ -53,8 +53,8 @@ public:
 
             qDebug() << "setModelData(cbxDevice):" << id;
 
-            auto item = qobject_cast<QStandardItemModel *>(model)->itemFromIndex(index);
             if (id.isValid()) {
+                auto item = qobject_cast<QStandardItemModel *>(model)->itemFromIndex(index);
                 item->setText(id.toString());
                 item->setData(id, RemoteDev::Constants::DEV_ID_ROLE);
             }

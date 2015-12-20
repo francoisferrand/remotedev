@@ -10,7 +10,6 @@
 #include "connection.h"
 
 QT_BEGIN_NAMESPACE
-class QAction;
 class QTime;
 class QStandardItemModel;
 QT_END_NAMESPACE
@@ -39,7 +38,6 @@ public:
 
 public slots:
     void uploadCurrentDocument();
-    void uploadCurrentDocument1();
 
 private slots:
     void triggerAction();

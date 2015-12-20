@@ -29,6 +29,7 @@
 #include "connectionspage.h"
 #include "connection/sftpoptionspage.h"
 #include "projectsettingswidget.h"
+#include "devicesynchelper.h"
 
 #include <QDebug>
 
@@ -106,77 +107,8 @@ bool RemoteDevPlugin::delayedInitialize()
     // Perforn non-trivial startup sequence after application startup
     // Return true, if implemented
 
-    // TODO: read configuration, create connections, install handlers
-    auto deviceMgr = ProjectExplorer::DeviceManager::instance();
-
-    auto insertDevice = [this] (ProjectExplorer::IDevice::ConstPtr device, bool append) {
-        auto nameItem = new QStandardItem(device->displayName());
-        auto idItem = new QStandardItem(device->id().toString());
-        idItem->setData(device->id().toSetting(), Constants::DEV_ID_ROLE);
-
-        if (append) {
-            this->m_devices->appendRow({ nameItem, idItem });
-        } else {
-            auto items = this->m_devices->findItems(device->id().toString(),
-                                                    Qt::MatchExactly, Constants::DEV_ID_COLUMN);
-            for (auto item : items) {
-                // replace all occurencies
-                this->m_devices->setItem(item->row(), Constants::DEV_NAME_COLUMN, nameItem);
-                this->m_devices->setItem(item->row(), Constants::DEV_ID_COLUMN, idItem);
-            }
-        }
-    };
-
-    // synchronize devices
-    connect(deviceMgr, &ProjectExplorer::DeviceManager::deviceAdded,
-        [this, deviceMgr, &insertDevice] (Core::Id id) {
-            auto device = deviceMgr->find(id);
-            if (! device.isNull()) {
-                qDebug() << "Adding device:" << device->displayName();
-                insertDevice(device, true);
-            }
-        }
-    );
-    connect(deviceMgr, &ProjectExplorer::DeviceManager::deviceUpdated,
-        [this, deviceMgr, &insertDevice] (Core::Id id) {
-            auto device = deviceMgr->find(id);
-            if (! device.isNull()) {
-                insertDevice(device, false);
-            }
-        }
-    );
-    connect(deviceMgr, &ProjectExplorer::DeviceManager::deviceRemoved,
-        [this, deviceMgr] (Core::Id id) {
-            auto items = this->m_devices
-                    ->findItems(id.toString(), Qt::MatchExactly, Constants::DEV_ID_COLUMN);
-            for (auto idItem : items) {
-                auto nameItem = this->m_devices->item(idItem->row(),
-                                                      Constants::DEV_NAME_COLUMN);
-                qDebug() << "Removing device:" << nameItem->text();
-                if (items.count() > 1) {
-                    const auto tmpl = QStringLiteral("WARNING: ambiguous removed device %1 (%2)");
-                    showDebug(tmpl.arg(nameItem->text(), idItem->text()));
-                }
-
-                this->m_devices->removeRow(idItem->row());
-                break; // more than one removal is not allowed here
-            }
-        }
-    );
-
-    // add items that are present now
-    for (int i = 0; i < deviceMgr->deviceCount(); i++) {
-        auto device = deviceMgr->deviceAt(i);
-
-        // FIXME: make sure that device can receive files
-        auto params = device->sshParameters();
-        if (params.host.isEmpty() || params.port == 0) {
-            continue;
-        }
-
-        qDebug() << "Restoring device:" << device->displayName();
-        insertDevice(device, true);
-    }
+    auto helper = new DeviceSyncHelper(m_devices, this);
+    helper->startDeviceSync();
 
     return true;
 }
@@ -205,45 +137,39 @@ void RemoteDevPlugin::uploadCurrentDocument()
     if (! document) return;
 
     const auto &local = document->filePath();
+    const auto project = ProjectExplorer::SessionManager::projectForFile(local);
+    if (! project)
+        return;
 
-    Utils::FileName relPath;
-    auto remote = Utils::FileName::fromString(QStringLiteral("/tmp"));
+    // TODO: mappings should be created even if widget was not created
+    auto mappings = m_mappings.value(project->id());
+    if (! mappings)
+        return;
 
-    // TODO: move this to initialize(), depend on ProjectExplorer
-    auto projects = ProjectExplorer::SessionManager::projects();
-    for (auto project : projects) {
-        Utils::FileName dir = project->projectDirectory();
-        if (local.isChildOf(dir)) {
-            // FIXME: only for debug
-            remote.appendPath(project->displayName());
-
-            remote.appendPath(local.relativeChildPath(dir).toString());
-            break;
-        }
-    }
-
-    showDebug(QStringLiteral("Upload %1 to %2").arg(local.fileName(), remote.toString()));
-
-    auto *mgr = ProjectExplorer::DeviceManager::instance();
-    for (int i = 0; i < mgr->deviceCount(); i++) {
-        auto device = mgr->deviceAt(i);
-//        bool canCreateProcess() const { return true; }
-//        ProjectExplorer::DeviceProcess *createProcess(QObject *parent) const;
-//        bool canAutoDetectPorts() const;
-//        ProjectExplorer::PortsGatheringMethod::Ptr portsGatheringMethod() const;
-//        bool canCreateProcessModel() const { return true; }
-//        ProjectExplorer::DeviceProcessList *createProcessListModel(QObject *parent) const;
+    auto deviceMgr = ProjectExplorer::DeviceManager::instance();
+    for (int i = 0; i < mappings->rowCount(); i++) {
+        auto idSetting = mappings->item(i, Constants::MAP_DEVICE_COLUMN)->data(Constants::DEV_ID_ROLE);
+        auto device = deviceMgr->find(Core::Id::fromSetting(idSetting));
 
         auto connection = ConnectionManager::connectionForDevice(device.data());
-        if (connection.isNull())
+        if (connection.isNull()) {
+            qDebug() << "No connection for mapping \"" << mappings->item(i, Constants::MAP_NAME_COLUMN)->text()
+                     << "and device" << device->displayName();
             continue;
+        }
+
+        auto remote = Utils::FileName::fromString(mappings->item(i, Constants::MAP_PATH_COLUMN)->text());
+        remote.appendPath(project->displayName()); // only for debug!
+        remote.appendPath(local.relativeChildPath(project->projectDirectory()).toString());
+
+        showDebug(QStringLiteral("%1: Upload %2 to %3").arg(device->displayName(), local.fileName(), remote.toString()));
 
         static QSet<QString> hasHandler;
         if (! hasHandler.contains(connection->alias())) {
             connect(connection.data(), &Connection::uploadFinished,
                 [this, connection, local] (RemoteJobId job) -> void {
                     auto timer = m_timers.take(job);
-                    int elapsed = timer ? timer->elapsed() : 0;
+                    int elapsed = timer ? timer->elapsed() : -1;
 
                     this->showDebug(QString::fromLatin1("%1: %2 [%3 ms]")
                                     .arg(connection->alias(), tr("success"), QString::number(elapsed)));
@@ -252,55 +178,13 @@ void RemoteDevPlugin::uploadCurrentDocument()
             connect(connection.data(), &Connection::uploadError,
                 [this, connection, local] (RemoteJobId job, const QString &reason) -> void {
                     auto timer = m_timers.take(job);
-                    int elapsed = timer ? timer->elapsed() : 0;
+                    int elapsed = timer ? timer->elapsed() : -1;
 
                     this->showDebug(QString::fromLatin1("%1: %2 [%3 ms]: %4")
                                     .arg(connection->alias(), tr("failure"), QString::number(elapsed), reason));
                 }
             );
             hasHandler.insert(connection->alias());
-        }
-
-        auto timer = QSharedPointer<QTime>(new QTime);
-        timer->start();
-        RemoteJobId job = connection->uploadFile(local, remote, OverwriteExisting);
-        m_timers.insert(job, timer);
-    }
-}
-
-void RemoteDevPlugin::uploadCurrentDocument1()
-{
-    Core::IDocument *document = Core::EditorManager::currentDocument();
-
-    if (document) {
-        QString name = document->displayName();
-
-        const auto &local = document->filePath();
-        const auto remote = Utils::FileName::fromString(QString::fromLatin1("/tmp/") + local.fileName());
-
-        auto connection = ConnectionManager::connectionForAlias(QString::fromLatin1("localhost"));
-
-        // FIXME: move handler installation to the delayedInitialize()
-        // since now there is only one connection -> this is okay
-        static bool handlerInstalled = false;
-        if (! handlerInstalled) {
-            handlerInstalled = true;
-            connect(connection.data(), &Connection::uploadFinished,
-                    [this, name] (RemoteJobId job) -> void {
-                        auto timer = m_timers.take(job);
-                        int elapsed = timer ? timer->elapsed() : 0;
-
-                        this->showDebug(QString::fromLatin1("%1: %2 [%3 ms]")
-                                        .arg(name, tr("success"), QString::number(elapsed)));
-                    });
-            connect(connection.data(), &Connection::uploadError,
-                    [this, name] (RemoteJobId job, const QString &reason) -> void {
-                        auto timer = m_timers.take(job);
-                        int elapsed = timer ? timer->elapsed() : 0;
-
-                        this->showDebug(QString::fromLatin1("%1: %2 [%3 ms]: %4")
-                                        .arg(name, tr("failure"), QString::number(elapsed), reason));
-                    });
         }
 
         auto timer = QSharedPointer<QTime>(new QTime);

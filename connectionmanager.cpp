@@ -66,20 +66,22 @@ Connection::Ptr ConnectionManager::connectionForDevice(const ProjectExplorer::ID
 {
     Connection::Ptr connection(nullptr);
 
-    QMutexLocker locker(&m_instance->m_connectionPoolMutex);
-    if (! m_instance->m_connectionPool.contains(device->id())) {
-        QSsh::SshConnectionParameters params = device->sshParameters();
+    if (device) {
+        QMutexLocker locker(&m_instance->m_connectionPoolMutex);
+        if (! m_instance->m_connectionPool.contains(device->id())) {
+            QSsh::SshConnectionParameters params = device->sshParameters();
 
-        // Defaul localhost device has invalid parameters!
-        // TODO: test if Localhost device works
-        if (!params.host.isEmpty() && params.port != 0) {
-            connection = Connection::Ptr(new SftpConnection(device->displayName(), params));
-            m_instance->m_connectionPool.insert(device->id(), connection);
+            // Defaul localhost device has invalid parameters!
+            // TODO: test if Localhost device works
+            if (!params.host.isEmpty() && params.port != 0) {
+                connection = Connection::Ptr(new SftpConnection(device->displayName(), params));
+                m_instance->m_connectionPool.insert(device->id(), connection);
+            }
+        } else {
+            connection = m_instance->m_connectionPool.value(device->id());
         }
-    } else {
-        connection = m_instance->m_connectionPool.value(device->id());
+        locker.unlock();
     }
-    locker.unlock();
 
     return connection;
 }
