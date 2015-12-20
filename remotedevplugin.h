@@ -3,8 +3,6 @@
 
 #include "remotedev_global.h"
 
-#include <QHash>
-
 #include <extensionsystem/iplugin.h>
 
 #include "connection.h"
@@ -21,6 +19,7 @@ namespace Internal {
 
 class ConnectionsPage;
 class ConnectionManager;
+class MappingsManager;
 
 class RemoteDevPlugin : public ExtensionSystem::IPlugin
 {
@@ -59,10 +58,12 @@ private:
 
 private:
     ConnectionsPage *m_optionsPage;
-    QHash<RemoteJobId, QSharedPointer<QTime>> m_timers;
-    ConnectionManager *m_connManager;
 
-    QHash<Core::Id, QStandardItemModel *> m_mappings;
+    QHash<RemoteJobId, QSharedPointer<QTime>> m_timers;
+
+    ConnectionManager *m_connManager;
+    MappingsManager   *m_mapManager;
+
     QStandardItemModel *m_devices;
 };
 

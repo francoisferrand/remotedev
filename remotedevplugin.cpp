@@ -29,7 +29,8 @@
 #include "connectionspage.h"
 #include "connection/sftpoptionspage.h"
 #include "projectsettingswidget.h"
-#include "devicesynchelper.h"
+#include "deviceshelper.h"
+#include "mappingsmanager.h"
 
 #include <QDebug>
 
@@ -37,6 +38,7 @@ using namespace RemoteDev::Internal;
 
 RemoteDevPlugin::RemoteDevPlugin() :
     m_connManager(new ConnectionManager),
+    m_mapManager(new MappingsManager),
     m_devices(new QStandardItemModel(0, Constants::DEV_COLUMNS_COUNT))
 {}
 
@@ -45,6 +47,7 @@ RemoteDevPlugin::~RemoteDevPlugin()
     // Unregister objects from the plugin manager's object pool
     // Delete members
     delete m_connManager;
+    delete m_mapManager;
     delete m_devices;
 }
 
@@ -107,7 +110,7 @@ bool RemoteDevPlugin::delayedInitialize()
     // Perforn non-trivial startup sequence after application startup
     // Return true, if implemented
 
-    auto helper = new DeviceSyncHelper(m_devices, this);
+    auto helper = new DevicesHelper(m_devices, this);
     helper->startDeviceSync();
 
     return true;
@@ -142,7 +145,7 @@ void RemoteDevPlugin::uploadCurrentDocument()
         return;
 
     // TODO: mappings should be created even if widget was not created
-    auto mappings = m_mappings.value(project->id());
+    auto mappings = m_mapManager->mappingsForProject(project);
     if (! mappings)
         return;
 
@@ -233,7 +236,7 @@ void RemoteDevPlugin::createOptionsPage()
 void RemoteDevPlugin::createProjectSettingsPage()
 {
     auto panelFactory = new ProjectExplorer::ProjectPanelFactory();
-    panelFactory->setPriority(100); // FIXME: what does this do?
+    panelFactory->setPriority(100); // this sets panel order in tabs
     panelFactory->setDisplayName(tr("RemoteDev"));
 
 //    QIcon icon /* = QIcon(QLatin1String(":/projectexplorer/images/EditorSettings.png")) */;
@@ -246,9 +249,8 @@ void RemoteDevPlugin::createProjectSettingsPage()
 
             // TODO: pass devices model
             auto widget = new ProjectSettingsWidget(project);
-            auto model = widget->mappingsModel();
-            model->setParent(this); // remove all data when plugin is destroyed
-            m_mappings[project->id()] = model;
+
+            widget->setMappingsModel(m_mapManager->mappingsForProject(project));
             widget->setDevicesModel(m_devices);
 
             panel->setWidget(widget);

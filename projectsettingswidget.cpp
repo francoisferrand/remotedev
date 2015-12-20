@@ -29,11 +29,9 @@ public:
             auto items = model->findItems(idStr, Qt::MatchExactly,
                                           RemoteDev::Constants::DEV_ID_COLUMN);
             if (items.count() > 0) {
-                qDebug() << "setEditorData(cbxDevice):" << idStr << "index:" << items.at(0)->row();
                 // FIXME: warn if items.count() > 1
                 ui->cbxDevice->setCurrentIndex(items.at(0)->row());
             } else {
-                qDebug() << "setEditorData(cbxDevice): -1";
                 ui->cbxDevice->setCurrentIndex(-1); // clear the combo
             }
         } else {
@@ -74,29 +72,8 @@ ProjectSettingsWidget::ProjectSettingsWidget(ProjectExplorer::Project *prj) :
 {
     ui->setupUi(this);
 
-    auto model = new QStandardItemModel(0, Constants::MAP_COLUMNS_COUNT);
-
-    m_mapper->setModel(model);
     m_mapper->setItemDelegate(new MappingSettingsDelegate(ui, m_mapper));
-
-    m_mapper->addMapping(ui->cbxDevice, Constants::MAP_DEVICE_COLUMN);
-    m_mapper->addMapping(ui->edtPath, Constants::MAP_PATH_COLUMN);
     m_mapper->setSubmitPolicy(QDataWidgetMapper::AutoSubmit);
-
-    ui->tblMappings->setModel(model);
-    ui->tblMappings->setColumnHidden(Constants::MAP_DEVICE_COLUMN, true);
-    ui->tblMappings->setColumnHidden(Constants::MAP_PATH_COLUMN, true);
-
-    connect(ui->tblMappings->selectionModel(), &QItemSelectionModel::currentRowChanged,
-            m_mapper, &QDataWidgetMapper::setCurrentModelIndex);
-
-    connect(m_project, &ProjectExplorer::Project::aboutToSaveSettings,
-            this, &ProjectSettingsWidget::saveSettings);
-
-    // TBD: is this required?
-    //connect(m_project, &ProjectExplorer::Project::settingsLoaded,
-    //        this, &ProjectSettingsWidget::initData);
-    this->initData();
 }
 
 ProjectSettingsWidget::~ProjectSettingsWidget()
@@ -127,58 +104,18 @@ void ProjectSettingsWidget::removeMapping()
     // TODO: when no items left -> clear form
 }
 
-void ProjectSettingsWidget::initData()
+void ProjectSettingsWidget::setMappingsModel(QStandardItemModel *mappings)
 {
-    qDebug() << "Initializing project settings:" << m_project->displayName();
+    m_mapper->setModel(mappings);
+    m_mapper->addMapping(ui->cbxDevice, Constants::MAP_DEVICE_COLUMN);
+    m_mapper->addMapping(ui->edtPath, Constants::MAP_PATH_COLUMN);
 
-    auto settings = m_project->namedSettings(QLatin1String(Constants::SETTINGS_GROUP)).toMap();
-    auto mappings = settings.value(QLatin1String(Constants::MAPPINGS_GROUP)).toList();
+    ui->tblMappings->setModel(mappings);
+    ui->tblMappings->setColumnHidden(Constants::MAP_DEVICE_COLUMN, true);
+    ui->tblMappings->setColumnHidden(Constants::MAP_PATH_COLUMN, true);
 
-    qDebug() << "Settings:" << settings;
-
-    // NOTE: lines below cause setColumnHidden() to lose effect
-    //auto model = qobject_cast<QStandardItemModel *>(ui->tblMappings->model());
-    //model->clear();
-
-    for (auto &mapping : mappings) {
-        auto config = mapping.toMap();
-
-        qDebug() << "Restoring mapping:" << config[QStringLiteral("name")].toString();
-
-        // TODO: check if device exists
-        this->createMapping(config[QStringLiteral("name")].toString(),
-                            config[QStringLiteral("enabled")].toBool(),
-                            Core::Id::fromSetting(config[QStringLiteral("device")]),
-                            config[QStringLiteral("path")].toString());
-    }
-}
-
-void ProjectSettingsWidget::saveSettings()
-{
-    qDebug() << "Saving mappings for" << m_project->displayName();
-
-    QVariantList mappings;
-    auto model = qobject_cast<QStandardItemModel *>(ui->tblMappings->model());
-    for (int i = 0; i < model->rowCount(); i++) {
-        const auto &name = model->item(i, 0)->text();
-
-        qDebug() << "Saving mapping:" << name;
-        mappings.append(QVariantMap({
-            { QStringLiteral("name"),    name },
-            { QStringLiteral("enabled"), model->item(i, 1)->data(Qt::CheckStateRole) },
-            { QStringLiteral("device"),  model->item(i, 2)->data(Constants::DEV_ID_ROLE) },
-            { QStringLiteral("path"),    model->item(i, 3)->text() }
-        }));
-    }
-
-    auto settings = m_project->namedSettings(QLatin1String(Constants::SETTINGS_GROUP)).toMap();
-    settings[QLatin1String(Constants::MAPPINGS_GROUP)] = mappings;
-    m_project->setNamedSettings(QLatin1String(Constants::SETTINGS_GROUP), settings);
-}
-
-QStandardItemModel * ProjectSettingsWidget::mappingsModel()
-{
-    return qobject_cast<QStandardItemModel *>(ui->tblMappings->model());
+    connect(ui->tblMappings->selectionModel(), &QItemSelectionModel::currentRowChanged,
+            m_mapper, &QDataWidgetMapper::setCurrentModelIndex);
 }
 
 void ProjectSettingsWidget::setDevicesModel(QStandardItemModel *devices)

@@ -33,13 +33,10 @@ private slots:
     void newMapping();
     void removeMapping();
 
-    // ProjectExplorer::Project handling
-    void initData();
-    void saveSettings();
-
 private:
     friend class RemoteDevPlugin;
-    QStandardItemModel * mappingsModel();
+
+    void setMappingsModel(QStandardItemModel *mappings);
     void setDevicesModel(QStandardItemModel *devices);
 
     void createMapping(const QString &name, bool enabled,
