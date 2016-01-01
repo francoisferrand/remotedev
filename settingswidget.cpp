@@ -1,24 +1,24 @@
-#include "connectionswidget.h"
-#include "ui_connectionswidget.h"
+#include "settingswidget.h"
+#include "ui_settingswidget.h"
 
 #include <QSettings>
 #include <QStringList>
 
 using namespace RemoteDev::Internal;
 
-ConnectionsWidget::ConnectionsWidget(QWidget *parent) :
+SettingsWidget::SettingsWidget(QWidget *parent) :
     QWidget(parent),
-    ui(new Ui::ConnectionsWidget)
+    ui(new Ui::SettingsWidget)
 {
     ui->setupUi(this);
 }
 
-ConnectionsWidget::~ConnectionsWidget()
+SettingsWidget::~SettingsWidget()
 {
     delete ui;
 }
 
-void ConnectionsWidget::updateWithSettings(QSettings &settings)
+void SettingsWidget::updateWithSettings(QSettings &settings)
 {
     settings.beginGroup(QStringLiteral("connections"));
     QStringList connections = settings.childGroups();

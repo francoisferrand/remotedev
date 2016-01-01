@@ -2,10 +2,10 @@ DEFINES += REMOTEDEV_LIBRARY
 
 # RemoteDev files
 
-SOURCES += remotedevplugin.cpp \
+SOURCES += \
+    remotedevplugin.cpp \
     connectionmanager.cpp \
     connection/sftpconnection.cpp \
-    connectionswidget.cpp \
     connection.cpp \
     connectionspage.cpp \
     iconnectionoptionspage.cpp \
@@ -13,23 +13,25 @@ SOURCES += remotedevplugin.cpp \
     connection/sftpoptionspage.cpp \
     projectsettingswidget.cpp \
     mappingsmanager.cpp \
-    devicemanager.cpp
+    devicemanager.cpp \
+    settingswidget.cpp
 
-HEADERS += remotedevplugin.h \
-        remotedev_global.h \
-        remotedevconstants.h \
+HEADERS += \
+    remotedevplugin.h \
+    remotedev_global.h \
+    remotedevconstants.h \
     connectionmanager.h \
     connection/sftpconnection.h \
     connection.h \
     connectionspage.h \
-    connectionswidget.h \
     iconnectionoptionspage.h \
     connection/sftpsettingswidget.h \
     connection/sftpoptionspage.h \
     connectionconstants.h \
     projectsettingswidget.h \
     mappingsmanager.h \
-    devicemanager.h
+    devicemanager.h \
+    settingswidget.h
 
 CONFIG += C++11
 
@@ -57,7 +59,7 @@ include(remotedev_dependencies.pri)
 include($$QTCREATOR_SOURCES/src/qtcreatorplugin.pri)
 
 FORMS += \
-    connectionswidget.ui \
     connection/sftpsettingswidget.ui \
-    projectsettingswidget.ui
+    projectsettingswidget.ui \
+    settingswidget.ui
 

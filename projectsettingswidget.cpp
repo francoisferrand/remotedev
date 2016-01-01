@@ -70,6 +70,8 @@ ProjectSettingsWidget::ProjectSettingsWidget(ProjectExplorer::Project *prj) :
 {
     ui->setupUi(this);
 
+    qDebug() << "Settings widget for project" << prj->displayName();
+
     m_mapper->setItemDelegate(new MappingSettingsDelegate(ui, m_mapper));
     m_mapper->setSubmitPolicy(QDataWidgetMapper::AutoSubmit);
 }

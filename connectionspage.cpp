@@ -1,6 +1,6 @@
 #include "connectionspage.h"
 
-#include "connectionswidget.h"
+#include "settingswidget.h"
 
 using namespace RemoteDev::Internal;
 
@@ -20,7 +20,7 @@ ConnectionsPage::ConnectionsPage(QObject *parent) :
 QWidget *ConnectionsPage::widget()
 {
     if (! m_widget) {
-        m_widget = new Internal::ConnectionsWidget;
+        m_widget = new Internal::SettingsWidget;
     }
     return m_widget;
 }

@@ -10,21 +10,21 @@ QT_END_NAMESPACE
 namespace RemoteDev {
 namespace Internal {
 
-namespace Ui { class ConnectionsWidget; }
+namespace Ui { class SettingsWidget; }
 
-class ConnectionsWidget : public QWidget
+class SettingsWidget : public QWidget
 {
     Q_OBJECT
 public:
-    explicit ConnectionsWidget(QWidget *parent = 0);
-    ~ConnectionsWidget();
+    explicit SettingsWidget(QWidget *parent = 0);
+    ~SettingsWidget();
 
     void updateWithSettings(QSettings &settings);
 
 private:
 
 private:
-    Ui::ConnectionsWidget *ui;
+    Ui::SettingsWidget *ui;
 };
 
 } // namespace Interal
