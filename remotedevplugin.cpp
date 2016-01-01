@@ -27,7 +27,6 @@
 
 #include "connectionmanager.h"
 #include "connectionspage.h"
-#include "connection/sftpoptionspage.h"
 #include "projectsettingswidget.h"
 #include "devicemanager.h"
 #include "mappingsmanager.h"
