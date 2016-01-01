@@ -224,9 +224,6 @@ void RemoteDevPlugin::onSaveAction()
 
 void RemoteDevPlugin::createOptionsPage()
 {
-    // register bundled connection types (SSH)
-    addAutoReleasedObject(new SftpOptionsPage(this));
-
     m_optionsPage = new ConnectionsPage(this);
     // TODO: load Core::ICore::settings();
     addAutoReleasedObject(m_optionsPage);
