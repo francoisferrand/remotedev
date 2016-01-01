@@ -27,15 +27,12 @@ public:
     static ConnectionManager *instance();
 
     /**
-     * @brief connectionForAlias - create/get connection to host by alias
+     * @brief connectionForDevice - create/get connection to host by device
      * The function tries to look up a connection in the connection pool,
      * if none found, creates new by a configuration
-     * TODO: configuration wizard?
-     * @param alias Host alias for lookup
+     * @param device Host device for lookup
      * @return a connection instance
      */
-    static Connection::Ptr connectionForAlias(const QString &alias);
-
     static Connection::Ptr connectionForDevice(const ProjectExplorer::IDevice *device);
 
 signals:
@@ -52,8 +49,6 @@ private slots:
 
 private:
     static ConnectionManager *m_instance;
-
-    QHash<QString, Connection::Ptr> m_connectionPool_;
 
     QHash<Core::Id, Connection::Ptr> m_connectionPool;
     QMutex m_connectionPoolMutex;

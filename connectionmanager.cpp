@@ -30,38 +30,6 @@ ConnectionManager *ConnectionManager::instance()
     return m_instance;
 }
 
-Connection::Ptr ConnectionManager::connectionForAlias(const QString &alias)
-{
-    // DeviceManager?
-
-    QMutexLocker locker(&m_instance->m_connectionPoolMutex);
-    if (! m_instance->m_connectionPool_.contains(alias)) {
-        QSsh::SshConnectionParameters params;
-        params.host = QString::fromLatin1("localhost");
-        params.userName = QString::fromLatin1("elvenfighter");
-        params.privateKeyFile = QString::fromLatin1("/home/elvenfighter/Projects/keys/localhost.rsa");
-        params.timeout = 30;
-        params.authenticationType = QSsh::SshConnectionParameters::AuthenticationTypePublicKey;
-        params.port = 22;
-//        params.options &= ~QSsh::SshEnableStrictConformanceChecks;
-//        params.hostKeyCheckingMode = QSsh::SshHostKeyCheckingStrict;
-//        params.hostKeyDatabase = QSsh::SshHostKeyDatabasePtr::create();
-
-        // FIXME: connection factory?
-        Connection::Ptr connection(new SftpConnection(alias, params, m_instance));
-
-        connect(connection.data(), &Connection::disconnected,
-                m_instance, &ConnectionManager::onDisconnected);
-        connect(connection.data(), &Connection::error,
-                m_instance, &ConnectionManager::onConnectionError);
-
-        m_instance->m_connectionPool_.insert(alias, connection);
-    }
-    locker.unlock();
-
-    return m_instance->m_connectionPool_.value(alias);
-}
-
 Connection::Ptr ConnectionManager::connectionForDevice(const ProjectExplorer::IDevice *device)
 {
     Connection::Ptr connection(nullptr);
@@ -85,8 +53,6 @@ Connection::Ptr ConnectionManager::connectionForDevice(const ProjectExplorer::ID
 
     return connection;
 }
-
-//Connection::Ptr ConnectionManager::connectionForAlias()
 
 void ConnectionManager::onDisconnected()
 {

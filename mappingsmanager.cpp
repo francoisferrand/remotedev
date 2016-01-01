@@ -26,7 +26,7 @@ QStandardItemModel *MappingsManager::mappingsForProject(ProjectExplorer::Project
 
         mappings = readProjectMappings(project);
         mappings->setParent(this);
-        m_mappings[project] = mappings;
+        m_mappings.insert(project, mappings);
     }
 
     return mappings;
