@@ -4,8 +4,6 @@
 #include <QObject>
 #include <QHash>
 
-#include <coreplugin/id.h>
-
 QT_BEGIN_NAMESPACE
 class QStandardItemModel;
 QT_END_NAMESPACE
@@ -28,7 +26,7 @@ private:
     void saveProjectMappings(ProjectExplorer::Project *project);
 
 private:
-    QHash<Core::Id, QStandardItemModel *> m_mappings;
+    QHash<ProjectExplorer::Project *, QStandardItemModel *> m_mappings;
 };
 
 } // namespace Internal

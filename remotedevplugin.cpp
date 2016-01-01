@@ -142,10 +142,11 @@ void RemoteDevPlugin::uploadCurrentDocument()
     if (! project)
         return;
 
-    // TODO: mappings should be created even if widget was not created
     auto mappings = m_mapManager->mappingsForProject(project);
     if (! mappings)
         return;
+
+    qDebug() << "Upload file for project" << project->displayName() << ":" << document->filePath().toString();
 
     auto deviceMgr = ProjectExplorer::DeviceManager::instance();
     for (int i = 0; i < mappings->rowCount(); i++) {

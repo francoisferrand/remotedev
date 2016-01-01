@@ -18,16 +18,18 @@ QStandardItemModel *MappingsManager::mappingsForProject(ProjectExplorer::Project
 {
     QStandardItemModel *mappings = nullptr;
 
-    if (! m_mappings.contains(project->id())) {
+    if (m_mappings.contains(project)) {
+        mappings = m_mappings.value(project);
+    } else {
         connect(project, &ProjectExplorer::Project::aboutToSaveSettings,
                 [this, project] () { this->saveProjectMappings(project); });
 
         mappings = readProjectMappings(project);
         mappings->setParent(this);
-        m_mappings[project->id()] = mappings;
+        m_mappings[project] = mappings;
     }
 
-    return mappings ? mappings : m_mappings.value(project->id());
+    return mappings;
 }
 
 QStandardItemModel *MappingsManager::readProjectMappings(const ProjectExplorer::Project *project) const
@@ -61,7 +63,7 @@ QStandardItemModel *MappingsManager::readProjectMappings(const ProjectExplorer::
 
 void MappingsManager::saveProjectMappings(ProjectExplorer::Project *project)
 {
-    auto model = m_mappings.value(project->id());
+    auto model = m_mappings.value(project);
     if (! model)
         return;
 
