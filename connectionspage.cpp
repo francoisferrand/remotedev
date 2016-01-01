@@ -10,7 +10,7 @@ ConnectionsPage::ConnectionsPage(QObject *parent) :
 {
     setId("remoteoptions");
     setCategory("remoteoptions");
-    setDisplayName(tr("Connection Settings"));
+    setDisplayName(tr("General Settings"));
     setDisplayCategory(tr("Remote Development"));
 
     setCategoryIcon(QString::fromLatin1(""));
