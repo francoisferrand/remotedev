@@ -85,26 +85,24 @@ void SftpConnection::startJobs() {
         [this, channel] (QSsh::SftpJobId action, const QString &reason) {
             auto job = m_actionJobs.take(action);
 
-            if (reason.isEmpty()) {
-                qDebug() << "SFTP" << job << action << ": action success";
+            auto queue = m_jobActions.value(job);
+            if (! queue->isEmpty()) {
+                qDebug() << "SFTP" << job << action << ": action finished:" << reason;
                 emit actionFinished(channel.data(), job);
             } else {
-                qDebug() << "SFTP" << job << action
-                         << ": action finished with channel error:" << reason;
+                m_jobActions.remove(job);
+                delete queue;
 
-                // report uploadError() only if this was the last action
-                auto queue = m_jobActions.value(job);
-                if (queue->isEmpty()) {
-                    m_jobActions.remove(job);
-                    delete queue;
+                // FIXME: cannot rely on this in multi-threaded environment
+                if (m_jobActions.isEmpty()) {
+                    channel->closeChannel();
+                }
 
-                    if (m_jobActions.isEmpty()) {
-                        channel->closeChannel();
-                    }
-
-                    emit uploadError(job, reason);
+                qDebug() << "SFTP" << job << action << ": job finished:" << reason;
+                if (reason.isEmpty()) {
+                    emit uploadFinished(job);
                 } else {
-                    emit actionFinished(channel.data(), job);
+                    emit uploadError(job, reason);
                 }
             }
         }
@@ -116,31 +114,26 @@ void SftpConnection::startJobs() {
 void SftpConnection::takeJobAction(QSsh::SftpChannel *channel, RemoteJobId job)
 {
     auto queue = m_jobActions.value(job);
-    if (! queue) return;
+    if (! queue || queue->isEmpty()) return;
 
-    bool jobDone = queue->isEmpty();
-    if (! jobDone) {
-        auto actionId = queue->dequeue()(channel);
-        if (actionId != REMOTE_INVALID_JOB) {
-            m_actionJobs.insert(actionId, job);
+    auto actionId = queue->dequeue()(channel);
+    if (actionId != QSsh::SftpInvalidJob) {
+        m_actionJobs.insert(actionId, job);
+    } else {
+        qDebug() << "SFTP" << job << actionId
+                 << ": action failed" <<  m_ssh.errorString();
+
+        if (! queue->isEmpty()) {
+            emit actionFinished(channel, job);
         } else {
-            qDebug() << "SFTP" << job << actionId
-                     << ": action failed" <<  m_ssh.errorString();
-            jobDone = true;
-        }
-    }
+            // FIXME: cleanup queue code duplication
+            m_jobActions.remove(job);
+            delete queue;
 
-    if (jobDone) {
-        m_jobActions.remove(job);
-        delete queue;
+            if (m_jobActions.isEmpty()) {
+                channel->closeChannel();
+            }
 
-        if (m_jobActions.isEmpty()) {
-            channel->closeChannel();
-        }
-
-        if (m_ssh.errorString().isEmpty()) {
-            emit uploadFinished(job);
-        } else {
             emit uploadError(job, m_ssh.errorString());
         }
     }
