@@ -137,53 +137,61 @@ void RemoteDevPlugin::uploadCurrentDocument()
     Core::IDocument *document = Core::EditorManager::currentDocument();
     if (! document) return;
 
-    const auto &local = document->filePath();
-    const auto project = ProjectExplorer::SessionManager::projectForFile(local);
-    if (! project)
-        return;
+    const auto project = ProjectExplorer::SessionManager::projectForFile(document->filePath());
+    if (! project)  return;
 
     auto mappings = m_mapManager->mappingsForProject(project);
-    if (! mappings)
-        return;
+    if (! mappings) return;
 
-    qDebug() << "Upload file for project" << project->displayName() << ":" << document->filePath().toString();
+    const auto local = project->projectDirectory();
+    const auto file  = document->filePath().relativeChildPath(local);
+
+    qDebug() << "Upload file for project" << project->displayName() << ":"
+             << document->filePath().toString();
 
     auto deviceMgr = ProjectExplorer::DeviceManager::instance();
     for (int i = 0; i < mappings->rowCount(); i++) {
-        auto idSetting = mappings->item(i, Constants::MAP_DEVICE_COLUMN)->data(Constants::DEV_ID_ROLE);
-        auto device = deviceMgr->find(Core::Id::fromSetting(idSetting));
+        auto isEnabled = mappings->item(i, Constants::MAP_ENABLED_COLUMN)
+                                 ->data(Qt::CheckStateRole).toBool();
+        if (! isEnabled) continue;
+
+
+        auto deviceId = mappings->item(i, Constants::MAP_DEVICE_COLUMN)
+                                 ->data(Constants::DEV_ID_ROLE);
+        auto device = deviceMgr->find(Core::Id::fromSetting(deviceId));
+        auto mapping = mappings->item(i, Constants::MAP_NAME_COLUMN)->text();
 
         auto connection = ConnectionManager::connectionForDevice(device.data());
         if (connection.isNull()) {
-            qDebug() << "No connection for mapping \"" << mappings->item(i, Constants::MAP_NAME_COLUMN)->text()
+            qDebug() << "No connection for mapping" << mapping
                      << "and device" << device->displayName();
             continue;
         }
 
         auto remote = Utils::FileName::fromString(mappings->item(i, Constants::MAP_PATH_COLUMN)->text());
-        remote.appendPath(project->displayName()); // only for debug!
-        remote.appendPath(local.relativeChildPath(project->projectDirectory()).toString());
-
-        showDebug(QStringLiteral("%1: Upload %2 to %3").arg(device->displayName(), local.fileName(), remote.toString()));
+        showDebug(QStringLiteral("%1: Upload \"%2\": \"%3\" -> \"%4\"").arg(
+                      mappings->item(i, Constants::MAP_NAME_COLUMN)->text(),
+                      file.toString(), local.toString(), remote.toString())
+                 );
 
         static QSet<QString> hasHandler;
         if (! hasHandler.contains(connection->alias())) {
             connect(connection.data(), &Connection::uploadFinished,
-                [this, connection, local] (RemoteJobId job) -> void {
+                [this, connection, local, mapping] (RemoteJobId job) {
                     auto timer = m_timers.take(job);
                     int elapsed = timer ? timer->elapsed() : -1;
 
                     this->showDebug(QString::fromLatin1("%1: %2 [%3 ms]")
-                                    .arg(connection->alias(), tr("success"), QString::number(elapsed)));
+                                    .arg(mapping, tr("success"), QString::number(elapsed)));
                 }
             );
             connect(connection.data(), &Connection::uploadError,
-                [this, connection, local] (RemoteJobId job, const QString &reason) -> void {
+                [this, connection, local, mapping] (RemoteJobId job, const QString &reason) {
                     auto timer = m_timers.take(job);
                     int elapsed = timer ? timer->elapsed() : -1;
 
                     this->showDebug(QString::fromLatin1("%1: %2 [%3 ms]: %4")
-                                    .arg(connection->alias(), tr("failure"), QString::number(elapsed), reason));
+                                    .arg(mapping, tr("failure"), QString::number(elapsed), reason));
                 }
             );
             hasHandler.insert(connection->alias());
@@ -191,7 +199,8 @@ void RemoteDevPlugin::uploadCurrentDocument()
 
         auto timer = QSharedPointer<QTime>(new QTime);
         timer->start();
-        RemoteJobId job = connection->uploadFile(local, remote, OverwriteExisting);
+
+        RemoteJobId job = connection->uploadFile(local, remote, file, OverwriteExisting);
         m_timers.insert(job, timer);
     }
 }

@@ -3,6 +3,8 @@
 
 #include "remotedev_global.h"
 
+#include <QObject>
+
 #include <ssh/sftpdefs.h>
 
 namespace Utils {
@@ -45,13 +47,15 @@ public:
 
     /**
      * @brief uploadFile - upload a file using this connection
-     * @param local     Path for local file
-     * @param remote    Path for remote file
+     * @param local     Local base directory
+     * @param remote    Remote base directory
+     * @param file      Relative file path (to both local and remote)
      * @param mode      OverwriteMode
      * @return Reference job ID
      */
     virtual RemoteJobId uploadFile(const Utils::FileName &local,
                                    const Utils::FileName &remote,
+                                   const Utils::FileName &file,
                                    OverwriteMode mode) = 0;
 
     /**

@@ -1,29 +1,32 @@
 #ifndef SFTPCONNECTION_H
 #define SFTPCONNECTION_H
 
-#include "../connection.h"
+#include <functional>
+
+#include <QObject>
+#include <QQueue>
+#include <QHash>
 
 #include <ssh/sshconnection.h>
 
-/* Q_ENUM is only defined by Qt 5.5 */
-#ifndef Q_ENUM
-#define Q_ENUM(ENUM) \
-    friend constexpr const QMetaObject *qt_getEnumMetaObject(ENUM) noexcept { return &staticMetaObject; } \
-    friend constexpr const char *qt_getEnumName(ENUM) noexcept { return #ENUM; }
-#endif
+#include "../connection.h"
 
 namespace RemoteDev {
 
 class SftpConnection : public Connection
 {
+    Q_OBJECT
+
 public:
     explicit SftpConnection(const QString &alias,
                             const QSsh::SshConnectionParameters &serverInfo,
                             QObject *parent = 0);
+
     ~SftpConnection();
 
     RemoteJobId uploadFile(const Utils::FileName &local,
                            const Utils::FileName &remote,
+                           const Utils::FileName &file,
                            OverwriteMode mode);
 
     QString errorString() const;
@@ -41,20 +44,28 @@ public:
     };
     Q_ENUM(AuthenticationType)
 
-private slots:
-    void triggerSftpFileUpload(RemoteJobId job,
-                               const Utils::FileName &local,
-                               const Utils::FileName &remote,
-                               QSsh::SftpOverwriteMode mode);
+signals:
+    void actionFinished(QSsh::SftpChannel *channel, RemoteJobId id);
 
-    void onSftpUploadFinished(QSsh::SftpJobId job, const QString &error);
+private:
+    typedef QQueue<std::function<QSsh::SftpJobId (QSsh::SftpChannel *)>> RemoteJobQueue;
+
+    RemoteJobQueue * createJobQueue(const Utils::FileName &local,
+                                    const Utils::FileName &remote,
+                                    const Utils::FileName &file,
+                                    OverwriteMode mode);
+
+private slots:
+    void startJobs();
+
+    void takeJobAction(QSsh::SftpChannel *channel, RemoteJobId id);
 
 private:
     QSsh::SshConnection m_ssh;
-    QHash<RemoteJobId, QSharedPointer<QSsh::SftpChannel>> m_openedChannels;
+    QHash<RemoteJobId, RemoteJobQueue *> m_jobActions;
+    QHash<QSsh::SftpJobId, RemoteJobId> m_actionJobs;
 };
 
 } // namespace RemoteDev
-
 
 #endif // SFTPCONNECTION_H

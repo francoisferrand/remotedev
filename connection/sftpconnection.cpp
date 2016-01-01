@@ -4,6 +4,7 @@
 
 #include <QDir>
 #include <QFileInfo>
+#include <QSharedPointer>
 
 #include <utils/fileutils.h>
 #include <ssh/sftpchannel.h>
@@ -16,8 +17,19 @@ SftpConnection::SftpConnection(const QString &alias,
     Connection(alias, parent),
     m_ssh(serverInfo, parent)
 {
-    connect(&m_ssh, &QSsh::SshConnection::error, this, &Connection::error);
-    connect(&m_ssh, &QSsh::SshConnection::disconnected, this, &Connection::disconnected);
+    connect(&m_ssh, &QSsh::SshConnection::error,
+            this, &Connection::error);
+    connect(&m_ssh, &QSsh::SshConnection::disconnected,
+            this, &Connection::disconnected);
+    connect(&m_ssh, &QSsh::SshConnection::connected,
+            this, &Connection::connected);
+
+    // local methods
+    connect(this, &Connection::connected,
+            this, &SftpConnection::startJobs);
+
+    connect(this, &SftpConnection::actionFinished,
+            this, &SftpConnection::takeJobAction);
 }
 
 
@@ -27,115 +39,146 @@ SftpConnection::~SftpConnection()
     disconnect(this, SIGNAL(disconnected()));
 }
 
-
-// FIXME: remote paths may have different fileseparator than native!
-void SftpConnection::triggerSftpFileUpload(RemoteJobId job,
-                                           const Utils::FileName &local,
-                                           const Utils::FileName &remote,
-                                           QSsh::SftpOverwriteMode mode)
+RemoteJobId SftpConnection::uploadFile(const Utils::FileName &local,
+                                       const Utils::FileName &remote,
+                                       const Utils::FileName &file,
+                                       OverwriteMode mode)
 {
-    auto channel = this->m_ssh.createSftpChannel();
-    if (! channel) {
-        this->onSftpUploadFinished(job, tr("Failed to create channel")
-                                        + QString::fromLatin1(": ")
-                                        + m_ssh.errorString());
+    RemoteJobId jobId = ++m_jobIdCounter;
+
+    m_jobActions.insert(jobId, createJobQueue(local, remote, file, mode));
+
+    if (m_ssh.state() == QSsh::SshConnection::Connected) {
+        // we are already connected -> do the job
+        emit connected();
+    } else {
+        m_ssh.connectToHost();
     }
 
-    this->m_openedChannels.insert(job, channel);
+    return jobId;
+}
 
-    // start upload when channel is initialized
+void SftpConnection::startJobs() {
+    auto channel = m_ssh.createSftpChannel();
+    if (! channel) {
+        qDebug() << "Failed to create SFTP channel" << m_ssh.errorString();
+        emit error();
+        return;
+    }
+
+    connect(channel.data(), &QSsh::SftpChannel::channelError,
+        [this] (const QString &reason) {
+            qDebug() << "Channel error:" << reason;
+            emit error();
+        }
+    );
+
     connect(channel.data(), &QSsh::SftpChannel::initialized,
-        [channel, job, local, remote, mode, this] () -> void {
-            QVector<QString> commonPart;
-
-            auto remoteBase = remote.parentDir();
-            auto localBase = local.parentDir();
-
-            while (remoteBase.fileName() == localBase.fileName()) {
-                commonPart.append(remoteBase.fileName());
-
-                remoteBase = remoteBase.parentDir();
-                localBase = localBase.parentDir();
-            }
-
-            for (auto &part : commonPart) {
-                remoteBase.appendPath(part);
-                auto sftpJob = channel->createDirectory(remoteBase.toString());
-
-                // FIXME: next directory should be created only after the previous job finishes
-                if (sftpJob == QSsh::SftpInvalidJob) {
-                    this->onSftpUploadFinished(job,
-                                               tr("Failed to create remote directory: ")
-                                               + m_ssh.errorString());
-                    return;
-                }
-            }
-
-
-            QSsh::SftpJobId sftpJob = channel->uploadFile(local.toString(),
-                                                          remote.toString(), mode);
-            if (sftpJob != QSsh::SftpInvalidJob) {
-                // and now, handle the last upload success
-                connect(channel.data(), &QSsh::SftpChannel::finished,
-                    [job, sftpJob, this] (QSsh::SftpJobId doneJob, const QString &error) -> void {
-                        if (doneJob == sftpJob) {
-                            this->onSftpUploadFinished(job, error);
-                        }
-                    }
-                );
-            } else {
-                this->onSftpUploadFinished(job, tr("Failed to start upload job")
-                                                + QString::fromLatin1(": ")
-                                                + m_ssh.errorString());
+        [this, channel] () {
+            for (auto id : m_jobActions.keys()) {
+                takeJobAction(channel.data(), id);
             }
         }
     );
 
-     // handle channel errors (if any)
-     connect(channel.data(), &QSsh::SftpChannel::channelError,
-         [job, this] (const QString &reason) -> void {
-            this->onSftpUploadFinished(job, tr("Channel error")
-                                            + QString::fromLatin1(": ")
-                                            + reason);
-         }
-     );
+    connect(channel.data(), &QSsh::SftpChannel::finished,
+        [this, channel] (QSsh::SftpJobId action, const QString &reason) {
+            auto job = m_actionJobs.take(action);
 
-//     // handle successful upload
-//     connect(channel.data(), &QSsh::SftpChannel::finished,
-//         [job, this] (QSsh::SftpJobId, const QString &error) -> void {
-//             this->onSftpUploadFinished(job, error);
-//         }
-//     );
+            if (reason.isEmpty()) {
+                qDebug() << "SFTP" << job << action << ": action success";
+                emit actionFinished(channel.data(), job);
+            } else {
+                qDebug() << "SFTP" << job << action
+                         << ": action finished with channel error:" << reason;
 
-     channel->initialize();
+                // report uploadError() only if this was the last action
+                auto queue = m_jobActions.value(job);
+                if (queue->isEmpty()) {
+                    m_jobActions.remove(job);
+                    delete queue;
+
+                    if (m_jobActions.isEmpty()) {
+                        channel->closeChannel();
+                    }
+
+                    emit uploadError(job, reason);
+                } else {
+                    emit actionFinished(channel.data(), job);
+                }
+            }
+        }
+    );
+
+    channel->initialize();
 }
 
-
-RemoteJobId SftpConnection::uploadFile(const Utils::FileName &local,
-                                       const Utils::FileName &remote,
-                                       OverwriteMode mode)
+void SftpConnection::takeJobAction(QSsh::SftpChannel *channel, RemoteJobId job)
 {
-    RemoteJobId result = ++m_jobIdCounter;
+    auto queue = m_jobActions.value(job);
+    if (! queue) return;
 
-    auto doUpload = std::bind(&SftpConnection::triggerSftpFileUpload,
-                              this, result, local, remote,
-                              static_cast<QSsh::SftpOverwriteMode>(mode));
-
-    if (m_ssh.state() == QSsh::SshConnection::Connected) {
-        doUpload();
-    } else {
-        // FIXME: dirty workaround for connecting the handler only once
-        static bool uploadAttached = false;
-        if (! uploadAttached) {
-            uploadAttached = true;
-            connect(&m_ssh, &QSsh::SshConnection::connected, doUpload);
-        }
-
-        if (m_ssh.state() == QSsh::SshConnection::Unconnected) {
-            // In case of state == Connecting no re-connection is required
-            m_ssh.connectToHost();
+    bool jobDone = queue->isEmpty();
+    if (! jobDone) {
+        auto actionId = queue->dequeue()(channel);
+        if (actionId != REMOTE_INVALID_JOB) {
+            m_actionJobs.insert(actionId, job);
+        } else {
+            qDebug() << "SFTP" << job << actionId
+                     << ": action failed" <<  m_ssh.errorString();
+            jobDone = true;
         }
     }
+
+    if (jobDone) {
+        m_jobActions.remove(job);
+        delete queue;
+
+        if (m_jobActions.isEmpty()) {
+            channel->closeChannel();
+        }
+
+        if (m_ssh.errorString().isEmpty()) {
+            emit uploadFinished(job);
+        } else {
+            emit uploadError(job, m_ssh.errorString());
+        }
+    }
+}
+
+SftpConnection::RemoteJobQueue *SftpConnection::createJobQueue(const Utils::FileName &local,
+                                                               const Utils::FileName &remote,
+                                                               const Utils::FileName &file,
+                                                               OverwriteMode mode)
+{
+    auto result = new RemoteJobQueue;
+
+    Utils::FileName remotePath = remote;
+    auto parts = file.toString().split(QLatin1Char('/'));
+    parts.takeLast();
+    for (auto dir : parts) {
+        const auto remoteDir = remotePath.appendPath(dir).toString();
+        qDebug() << "Queue: create directory:" << remoteDir;
+
+        result->enqueue([this, remoteDir] (QSsh::SftpChannel *channel) -> QSsh::SftpJobId {
+            auto id = channel->createDirectory(remoteDir);
+            qDebug() << "SFTP" << "*" << id << ": create directory:" << remoteDir;
+            return id;
+        });
+    }
+
+    const auto localFile = Utils::FileName(local).appendPath(file.toString()).toString();
+    const auto remoteFile = Utils::FileName(remote).appendPath(file.toString()).toString();
+    qDebug() << "Queue: upload file:" << localFile << " -> " << remoteFile;
+
+    result->enqueue(
+        [this, localFile, remoteFile, mode] (QSsh::SftpChannel *channel) -> QSsh::SftpJobId {
+            auto id = channel->uploadFile(localFile, remoteFile, (QSsh::SftpOverwriteMode) mode);
+            qDebug() << "SFTP" << "*" << id << ": upload file:"
+                     << localFile << " -> " << remoteFile;
+            return id;
+        }
+    );
 
     return result;
 }
@@ -143,20 +186,4 @@ RemoteJobId SftpConnection::uploadFile(const Utils::FileName &local,
 QString SftpConnection::errorString() const
 {
     return m_ssh.errorString();
-}
-
-
-void SftpConnection::onSftpUploadFinished(QSsh::SftpJobId job, const QString &error)
-{
-    if (error.isEmpty()) {
-        emit uploadFinished(job);
-    } else {
-        emit uploadError(job, error);
-    }
-
-    auto channel = m_openedChannels.value(job);
-    if (channel) {
-        channel->closeChannel();
-        m_openedChannels.remove(job);
-    }
 }
