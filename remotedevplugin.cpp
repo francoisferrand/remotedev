@@ -93,6 +93,7 @@ bool RemoteDevPlugin::initialize(const QStringList &arguments, QString *errorStr
 
     createOptionsPage();
     createProjectSettingsPage();
+    createFileMenus();
 
     return true;
 }
@@ -269,6 +270,48 @@ void RemoteDevPlugin::createProjectSettingsPage()
     );
 
     ProjectExplorer::ProjectPanelFactory::registerFactory(panelFactory);
+}
+
+#include <projectexplorer/projectexplorerconstants.h>
+#include <projectexplorer/projecttree.h>
+#include <projectexplorer/projectnodes.h>
+
+void RemoteDevPlugin::createFileMenus()
+{
+    const Core::Context projectTreeContext(ProjectExplorer::Constants::C_PROJECT_TREE);
+    // TODO: opened files context?
+
+    auto fileContextMenu = Core::ActionManager::actionContainer(
+                ProjectExplorer::Constants::M_FILECONTEXT);
+
+    // "Upload File" menu
+    auto m_uploadFile = new QAction(tr("Upload File"), this);
+    auto cmd = Core::ActionManager::registerAction(
+                m_uploadFile, "RemoteDev.UploadFile", // TODO: -> Constants
+                projectTreeContext);
+    fileContextMenu->addAction(cmd, ProjectExplorer::Constants::G_FILE_OTHER);
+    connect(m_uploadFile, &QAction::triggered, [this] () {
+        auto node = ProjectExplorer::ProjectTree::currentNode();
+        if (! node) return; // TODO: QTC_ASSERT
+
+        showDebug(QStringLiteral("TODO: Upload file: %1").arg(node->path().toString()));
+    });
+
+    // "Upload Directory" menu
+    auto folderContextMenu = Core::ActionManager::actionContainer(
+                ProjectExplorer::Constants::M_FOLDERCONTEXT);
+
+    auto m_uploadDirectory = new QAction(tr("Upload Directory"), this);
+    cmd = Core::ActionManager::registerAction(
+                m_uploadDirectory, "RemoteDev.UploadDirectory",
+                projectTreeContext);
+    folderContextMenu->addAction(cmd, ProjectExplorer::Constants::G_FOLDER_OTHER);
+    connect(m_uploadDirectory, &QAction::triggered, [this] {
+        auto node = ProjectExplorer::ProjectTree::currentNode();
+        if (! node) return;
+
+        showDebug(QStringLiteral("TODO: Upload directory: %1").arg(node->path().toString()));
+    });
 }
 
 void RemoteDevPlugin::showDebug(const QString &string) const

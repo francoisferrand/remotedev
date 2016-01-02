@@ -55,6 +55,7 @@ private slots:
 private:
     void createOptionsPage();
     void createProjectSettingsPage();
+    void createFileMenus();
 
     void showDebug(const QString &string) const;
 
