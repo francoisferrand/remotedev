@@ -11,9 +11,11 @@
 
 QT_BEGIN_NAMESPACE
 class QTime;
+class QAction;
 QT_END_NAMESPACE
 
 namespace Core { class IEditor; }
+namespace ProjectExplorer { class Project; }
 
 namespace RemoteDev {
 namespace Internal {
@@ -39,6 +41,7 @@ public:
 
 public slots:
     void uploadCurrentDocument();
+    void uploadCurrentNode();
 
 private slots:
     void triggerAction();
@@ -52,6 +55,9 @@ private slots:
     // ActionManager
     void onSaveAction();
 
+    void uploadFile(const Utils::FileName &file,
+                    ProjectExplorer::Project *project = nullptr);
+
 private:
     void createOptionsPage();
     void createProjectSettingsPage();
@@ -61,6 +67,9 @@ private:
 
 private:
     ConnectionsPage *m_optionsPage;
+
+    QAction *m_uploadFile;
+    QAction *m_uploadDirectory;
 
     QHash<RemoteJobId, QSharedPointer<QTime>> m_timers;
 

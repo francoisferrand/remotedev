@@ -17,6 +17,7 @@ MappingsManager::MappingsManager(QObject *parent) :
 QStandardItemModel *MappingsManager::mappingsForProject(ProjectExplorer::Project *project)
 {
     QStandardItemModel *mappings = nullptr;
+    if (! project) return mappings; // do not insert nullptr
 
     if (m_mappings.contains(project)) {
         mappings = m_mappings.value(project);

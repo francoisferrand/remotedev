@@ -10,6 +10,10 @@ namespace Constants {
  * @brief ACTION_ID identifies RemoteDev default action (to be removed)
  */
 const char ACTION_ID[] = "RemoteDev.Action";
+
+const char UPLOAD_FILE[]        = "RemoteDev.UploadFile";
+const char UPLOAD_DIRECTORY[]   = "RemoteDev.UploadDirectory";
+
 /**
  * @brief MENU_ID   identifies RemoteDev default menu
  */
