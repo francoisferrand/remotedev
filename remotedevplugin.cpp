@@ -132,7 +132,7 @@ ExtensionSystem::IPlugin::ShutdownFlag RemoteDevPlugin::aboutToShutdown()
 
     disconnect(this, SLOT(onConnectionError(Connection::Ptr)));
     disconnect(this, SLOT(onEditorOpened(Core::IEditor*)));
-    disconnect(this, SLOT(onSaveAction());
+    disconnect(this, SLOT(onSaveAction()));
 
     disconnect(m_uploadFile, SIGNAL(triggered(bool)));
     disconnect(m_uploadDirectory, SIGNAL(triggered(bool)));
