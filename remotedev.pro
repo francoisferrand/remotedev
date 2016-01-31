@@ -12,7 +12,8 @@ SOURCES += \
     projectsettingswidget.cpp \
     mappingsmanager.cpp \
     devicemanager.cpp \
-    settingswidget.cpp
+    settingswidget.cpp \
+    connectionhelper.cpp
 
 HEADERS += \
     remotedevplugin.h \
@@ -27,7 +28,8 @@ HEADERS += \
     projectsettingswidget.h \
     mappingsmanager.h \
     devicemanager.h \
-    settingswidget.h
+    settingswidget.h \
+    connectionhelper.h
 
 CONFIG += C++11
 

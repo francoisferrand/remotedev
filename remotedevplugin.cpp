@@ -26,6 +26,7 @@
 #include <projectexplorer/projectexplorerconstants.h>
 #include <projectexplorer/projectnodes.h>
 
+#include "connectionhelper.h"
 #include "connectionmanager.h"
 #include "connectionspage.h"
 #include "projectsettingswidget.h"
@@ -232,39 +233,36 @@ void RemoteDevPlugin::upload(const Utils::FileName &file,
             mappingName, relpath.toString(), local.toString(), remote.toString())
         );
 
-        static QSet<Connection *> hasHandler; // FIXME: dirty hack
-        if (! hasHandler.contains(connection.data())) {
-            hasHandler.insert(connection.data());
-            connect(connection.data(), &Connection::uploadFinished,
-                [this, connection, local, mappingName] (RemoteJobId job) {
-                    auto timer = m_timers.take(job);
-                    int elapsed = timer ? timer->elapsed() : -1;
-                    if (! timer)
-                        qDebug() << mappingName << "->" << job << ": no timer";
+        auto helper = connection->findChild<ConnectionHelper *>();
+        if (! helper) {
+            helper = new ConnectionHelper(connection.data());
 
-                    this->showDebug(QString::fromLatin1("%1: %2 [%3 ms]")
-                                    .arg(mappingName, tr("success"), QString::number(elapsed)));
+            // FIXME: transform to methods
+            connect(connection.data(), &Connection::uploadFinished,
+                [this, helper, local, mappingName] (RemoteJobId job) {
+                    auto elapsed = helper->endJob(job);
+
+                    this->showDebug(QString::fromLatin1("%1: %2 [%3 ms]: %4")
+                                    .arg(mappingName, tr("success"),
+                                         QString::number(elapsed), local.toString()));
                 }
             );
             connect(connection.data(), &Connection::uploadError,
-                [this, connection, local, mappingName] (RemoteJobId job, const QString &reason) {
-                    auto timer = m_timers.take(job);
-                    int elapsed = timer ? timer->elapsed() : -1;
-                    if (! timer)
-                        qDebug() << mappingName << "->" << job << ": no timer";
+                [this, helper, local, mappingName] (RemoteJobId job, const QString &reason) {
+                    auto elapsed = helper->endJob(job);
 
-                    this->showDebug(QString::fromLatin1("%1: %2 [%3 ms]: %4")
-                                    .arg(mappingName, tr("failure"), QString::number(elapsed), reason));
+                    this->showDebug(QString::fromLatin1("%1: %2 [%3 ms]: %4: %5")
+                                    .arg(mappingName, tr("failure"),
+                                         QString::number(elapsed), local.toString(), reason));
                 }
             );
         }
 
-        auto timer = QSharedPointer<QTime>(new QTime);
-        timer->start();
-
-        auto job = (connection.data()->*uploadMethod)(local, remote, relpath, OverwriteExisting);
-        m_timers.insert(job, timer);
-        qDebug() << "Started job" << mappingName << "->" << job;
+        helper->startJob([&] () -> RemoteJobId {
+            auto job = (connection.data()->*uploadMethod)(local, remote, relpath, OverwriteExisting);
+            qDebug() << "Started job" << mappingName << "->" << job;
+            return job;
+        });
     }
 }
 

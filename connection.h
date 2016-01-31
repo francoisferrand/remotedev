@@ -1,6 +1,8 @@
 #ifndef REMOTECONNECTION_H
 #define REMOTECONNECTION_H
 
+#pragma once
+
 #include "remotedev_global.h"
 
 #include <QObject>

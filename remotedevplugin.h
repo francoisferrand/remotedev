@@ -1,16 +1,15 @@
 #ifndef REMOTEDEV_H
 #define REMOTEDEV_H
 
-#include "remotedev_global.h"
+#pragma once
 
-#include <QHash>
+#include "remotedev_global.h"
 
 #include <extensionsystem/iplugin.h>
 
 #include "connection.h"
 
 QT_BEGIN_NAMESPACE
-class QTime;
 class QAction;
 QT_END_NAMESPACE
 
@@ -71,8 +70,6 @@ private:
 
     QAction *m_uploadFile;
     QAction *m_uploadDirectory;
-
-    QHash<RemoteJobId, QSharedPointer<QTime>> m_timers;
 
     ConnectionManager *m_connManager;
     MappingsManager   *m_mapManager;
