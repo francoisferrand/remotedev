@@ -81,14 +81,14 @@ bool RemoteDevPlugin::initialize(const QStringList &arguments, QString *errorStr
 
     auto *editorManager = Core::EditorManager::instance();
     // NOTE: currentEditorChanged is also triggered upon editorOpened
-    //connect(editorManager, &Core::EditorManager::editorOpened,
-    //        this, &RemoteDevPlugin::onEditorOpened);
+    // connect(editorManager, &Core::EditorManager::editorOpened,
+    //         this, &RemoteDevPlugin::uploadCurrentDocument);
     connect(editorManager, &Core::EditorManager::currentEditorChanged,
-            this, &RemoteDevPlugin::onEditorOpened);
+            this, &RemoteDevPlugin::uploadCurrentDocument);
 
     QAction *saveAction = Core::ActionManager::command(Core::Constants::SAVE)->action();
     connect(saveAction, &QAction::triggered,
-            this, &RemoteDevPlugin::onSaveAction);
+            this, &RemoteDevPlugin::uploadCurrentDocument);
 
     ConnectionManager *connectionManager = ConnectionManager::instance();
     connect(connectionManager, &ConnectionManager::connectionError,
@@ -131,8 +131,8 @@ ExtensionSystem::IPlugin::ShutdownFlag RemoteDevPlugin::aboutToShutdown()
     // Should it be done asynchronously?
 
     disconnect(this, SLOT(onConnectionError(Connection::Ptr)));
-    disconnect(this, SLOT(onEditorOpened(Core::IEditor*)));
-    disconnect(this, SLOT(onSaveAction()));
+    disconnect(this, SLOT(uploadCurrentDocument()));
+    disconnect(this, SLOT(uploadCurrentNode()));
 
     disconnect(m_uploadFile, SIGNAL(triggered(bool)));
     disconnect(m_uploadDirectory, SIGNAL(triggered(bool)));
@@ -144,7 +144,7 @@ void RemoteDevPlugin::uploadCurrentDocument()
 {
     auto document = Core::EditorManager::currentDocument();
     if (document) {
-        uploadFile(document->filePath());
+        upload(document->filePath(), nullptr, &Connection::uploadFile);
     }
 }
 
@@ -153,6 +153,8 @@ void RemoteDevPlugin::uploadCurrentNode()
     auto node = ProjectExplorer::ProjectTree::currentNode();
     if (! node) return;
 
+    auto project = ProjectExplorer::ProjectTree::projectForNode(node);
+
     switch (node->nodeType()) {
 //    FileNodeType = 1,
 //    FolderNodeType,
@@ -160,15 +162,13 @@ void RemoteDevPlugin::uploadCurrentNode()
 //    ProjectNodeType,
 //    SessionNodeType
     case ProjectExplorer::FileNodeType:
-        uploadFile(node->path());
+        upload(node->path(), project, &Connection::uploadFile);
         break;
     case ProjectExplorer::FolderNodeType:
-        showDebug(QStringLiteral("TODO: Upload directory: %1").arg(node->path().toString()));
+        upload(node->path(), project, &Connection::uploadDirectory);
         break;
     case ProjectExplorer::ProjectNodeType: {
-        auto project = ProjectExplorer::SessionManager::projectForNode(node);
-        showDebug(QStringLiteral("TODO: Upload project directory: %1")
-                  .arg(project->projectDirectory().toString()));
+        upload(project->projectDirectory(), project, &Connection::uploadDirectory);
         break;
     }
     default:
@@ -193,22 +193,16 @@ void RemoteDevPlugin::onConnectionError(Connection::Ptr connection)
     }
 }
 
-void RemoteDevPlugin::onEditorOpened(Core::IEditor *)
-{
-    uploadCurrentDocument();
-}
-
-void RemoteDevPlugin::onSaveAction()
-{
-    uploadCurrentDocument();
-}
-
-void RemoteDevPlugin::uploadFile(const Utils::FileName &file,
-                                 ProjectExplorer::Project *project)
+void RemoteDevPlugin::upload(const Utils::FileName &file,
+                             ProjectExplorer::Project *project,
+                             RemoteDevPlugin::UploadMethod uploadMethod)
 {
     project = project ? project
                       : ProjectExplorer::SessionManager::projectForFile(file);
-    if (! project) return; // FIXME: do some debug message
+    if (! project) {
+        qDebug() << "No project for file: " << file;
+        return;
+    }
 
     const auto mappings = m_mapManager->mappingsForProject(project);
     if (! mappings) return;
@@ -221,15 +215,11 @@ void RemoteDevPlugin::uploadFile(const Utils::FileName &file,
 
     auto deviceMgr = ProjectExplorer::DeviceManager::instance();
     for (int i = 0; i < mappings->rowCount(); i++) {
-        auto isEnabled = mappings->item(i, Constants::MAP_ENABLED_COLUMN)
-                                 ->data(Qt::CheckStateRole).toBool();
-        if (! isEnabled) continue;
+        if (! MappingsManager::isEnabled(*mappings, i)) continue;
 
-        auto deviceId = mappings->item(i, Constants::MAP_DEVICE_COLUMN)
-                ->data(Constants::DEV_ID_ROLE);
-        auto device = deviceMgr->find(Core::Id::fromSetting(deviceId));
-        auto mappingName = mappings->item(i, Constants::MAP_NAME_COLUMN)->text();
+        auto mappingName = MappingsManager::mappingName(*mappings, i);
 
+        auto device = deviceMgr->find(MappingsManager::deviceId(*mappings, i));
         auto connection = ConnectionManager::connectionForDevice(device.data());
         if (connection.isNull()) {
             qDebug() << "No connection for mapping" << mappingName
@@ -237,11 +227,10 @@ void RemoteDevPlugin::uploadFile(const Utils::FileName &file,
             continue;
         }
 
-        auto remote = Utils::FileName::fromString(mappings->item(i, Constants::MAP_PATH_COLUMN)->text());
+        auto remote = MappingsManager::remotePath(*mappings, i);
         showDebug(QStringLiteral("%1: Upload \"%2\": \"%3\" -> \"%4\"").arg(
-                      mappings->item(i, Constants::MAP_NAME_COLUMN)->text(),
-                      relpath.toString(), local.toString(), remote.toString())
-                 );
+            mappingName, relpath.toString(), local.toString(), remote.toString())
+        );
 
         static QSet<Connection *> hasHandler; // FIXME: dirty hack
         if (! hasHandler.contains(connection.data())) {
@@ -250,6 +239,8 @@ void RemoteDevPlugin::uploadFile(const Utils::FileName &file,
                 [this, connection, local, mappingName] (RemoteJobId job) {
                     auto timer = m_timers.take(job);
                     int elapsed = timer ? timer->elapsed() : -1;
+                    if (! timer)
+                        qDebug() << mappingName << "->" << job << ": no timer";
 
                     this->showDebug(QString::fromLatin1("%1: %2 [%3 ms]")
                                     .arg(mappingName, tr("success"), QString::number(elapsed)));
@@ -259,6 +250,8 @@ void RemoteDevPlugin::uploadFile(const Utils::FileName &file,
                 [this, connection, local, mappingName] (RemoteJobId job, const QString &reason) {
                     auto timer = m_timers.take(job);
                     int elapsed = timer ? timer->elapsed() : -1;
+                    if (! timer)
+                        qDebug() << mappingName << "->" << job << ": no timer";
 
                     this->showDebug(QString::fromLatin1("%1: %2 [%3 ms]: %4")
                                     .arg(mappingName, tr("failure"), QString::number(elapsed), reason));
@@ -269,8 +262,9 @@ void RemoteDevPlugin::uploadFile(const Utils::FileName &file,
         auto timer = QSharedPointer<QTime>(new QTime);
         timer->start();
 
-        RemoteJobId job = connection->uploadFile(local, remote, relpath, OverwriteExisting);
+        auto job = (connection.data()->*uploadMethod)(local, remote, relpath, OverwriteExisting);
         m_timers.insert(job, timer);
+        qDebug() << "Started job" << mappingName << "->" << job;
     }
 }
 

@@ -24,10 +24,15 @@ public:
 
     ~SftpConnection();
 
-    RemoteJobId uploadFile(const Utils::FileName &local,
-                           const Utils::FileName &remote,
+    RemoteJobId uploadFile(Utils::FileName local,
+                           Utils::FileName remote,
                            const Utils::FileName &file,
                            OverwriteMode mode);
+
+    RemoteJobId uploadDirectory(Utils::FileName local,
+                                Utils::FileName remote,
+                                const Utils::FileName &directory,
+                                OverwriteMode mode);
 
     QString errorString() const;
 
@@ -50,10 +55,9 @@ signals:
 private:
     typedef QQueue<std::function<QSsh::SftpJobId (QSsh::SftpChannel *)>> RemoteJobQueue;
 
-    RemoteJobQueue * createJobQueue(const Utils::FileName &local,
-                                    const Utils::FileName &remote,
-                                    const Utils::FileName &file,
-                                    OverwriteMode mode);
+    void enqueueCreatePath(RemoteJobQueue &queue,
+                           Utils::FileName remoteBase,
+                           const Utils::FileName &target);
 
 private slots:
     void startJobs();

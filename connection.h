@@ -53,10 +53,15 @@ public:
      * @param mode      OverwriteMode
      * @return Reference job ID
      */
-    virtual RemoteJobId uploadFile(const Utils::FileName &local,
-                                   const Utils::FileName &remote,
+    virtual RemoteJobId uploadFile(Utils::FileName local,
+                                   Utils::FileName remote,
                                    const Utils::FileName &file,
                                    OverwriteMode mode) = 0;
+
+    virtual RemoteJobId uploadDirectory(Utils::FileName local,
+                                        Utils::FileName remote,
+                                        const Utils::FileName &directory,
+                                        OverwriteMode mode) = 0;
 
     /**
      * @brief errorString - get a description for the last error

@@ -33,6 +33,30 @@ QStandardItemModel *MappingsManager::mappingsForProject(ProjectExplorer::Project
     return mappings;
 }
 
+bool MappingsManager::isEnabled(const QStandardItemModel &mappings, int index)
+{
+    return mappings.item(index, Constants::MAP_ENABLED_COLUMN)->data(Qt::CheckStateRole).toBool();
+}
+
+Core::Id MappingsManager::deviceId(const QStandardItemModel &mappings, int index)
+{
+    return Core::Id::fromSetting(
+        mappings.item(index, Constants::MAP_DEVICE_COLUMN)->data(Constants::DEV_ID_ROLE)
+    );
+}
+
+QString MappingsManager::mappingName(const QStandardItemModel &mappings, int index)
+{
+    return mappings.item(index, Constants::MAP_NAME_COLUMN)->text();
+}
+
+Utils::FileName MappingsManager::remotePath(const QStandardItemModel &mappings, int index)
+{
+    return Utils::FileName::fromString(
+        mappings.item(index, Constants::MAP_PATH_COLUMN)->text()
+    );
+}
+
 QStandardItemModel *MappingsManager::readProjectMappings(const ProjectExplorer::Project *project) const
 {
     auto items = project->namedSettings(QLatin1String(Constants::SETTINGS_GROUP)).toMap()

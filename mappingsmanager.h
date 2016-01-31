@@ -4,6 +4,9 @@
 #include <QObject>
 #include <QHash>
 
+#include <coreplugin/id.h>
+#include <utils/fileutils.h>
+
 QT_BEGIN_NAMESPACE
 class QStandardItemModel;
 QT_END_NAMESPACE
@@ -20,6 +23,11 @@ public:
     explicit MappingsManager(QObject *parent = 0);
 
     QStandardItemModel *mappingsForProject(ProjectExplorer::Project *project);
+
+    static bool isEnabled(const QStandardItemModel &mappings, int index);
+    static Core::Id deviceId(const QStandardItemModel &mappings, int index);
+    static QString mappingName(const QStandardItemModel &mappings, int index);
+    static Utils::FileName remotePath(const QStandardItemModel &mappings, int index);
 
 private:
     QStandardItemModel *readProjectMappings(const ProjectExplorer::Project *project) const;

@@ -39,6 +39,12 @@ public:
     bool delayedInitialize();
     ShutdownFlag aboutToShutdown();
 
+private:
+    typedef RemoteJobId (Connection::*UploadMethod)(Utils::FileName,
+                                                    Utils::FileName,
+                                                    const Utils::FileName &,
+                                                    OverwriteMode);
+
 public slots:
     void uploadCurrentDocument();
     void uploadCurrentNode();
@@ -49,14 +55,9 @@ private slots:
     // ConnectionManager
     void onConnectionError(Connection::Ptr connection);
 
-    // EditorManager
-    void onEditorOpened(Core::IEditor *);
-
-    // ActionManager
-    void onSaveAction();
-
-    void uploadFile(const Utils::FileName &file,
-                    ProjectExplorer::Project *project = nullptr);
+    void upload(const Utils::FileName &file,
+                ProjectExplorer::Project *project,
+                UploadMethod uploadMethod);
 
 private:
     void createOptionsPage();
