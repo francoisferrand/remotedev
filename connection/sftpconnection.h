@@ -13,6 +13,12 @@
 
 namespace RemoteDev {
 
+// TERMINOLOGY
+// Job      a queue of actions to achieve some result, e.g.
+//          upload file and create parent directories (if necessary)
+// Action   a single step on the way to complete a job, e.g.
+//          create directory
+
 class SftpConnection : public Connection
 {
     Q_OBJECT
@@ -59,15 +65,25 @@ private:
                            Utils::FileName remoteBase,
                            const Utils::FileName &target);
 
+    void enqueueUploadContents(RemoteJobQueue *actions,
+                               Utils::FileName local,
+                               Utils::FileName remote,
+                               OverwriteMode mode);
+
 private slots:
     void startJobs();
 
-    void takeJobAction(QSsh::SftpChannel *channel, RemoteJobId id);
+    void takeJobAction(QSsh::SftpChannel *channel, RemoteJobId job);
+    void onActionFinished(QSsh::SftpChannel *channel,
+                          QSsh::SftpJobId action, const QString &reason);
+
+    void onJobFinished(QSsh::SftpChannel *channel,
+                       RemoteJobId job, const QString &reason = QString());
 
 private:
     QSsh::SshConnection m_ssh;
-    QHash<RemoteJobId, RemoteJobQueue *> m_jobActions;
-    QHash<QSsh::SftpJobId, RemoteJobId> m_actionJobs;
+    QHash<RemoteJobId, RemoteJobQueue *> m_actions;
+    QHash<QSsh::SftpJobId, RemoteJobId> m_jobs;
 };
 
 } // namespace RemoteDev

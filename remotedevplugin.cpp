@@ -205,6 +205,12 @@ void RemoteDevPlugin::upload(const Utils::FileName &file,
         return;
     }
 
+//    FIXME:
+//    CMocka-1: Upload "src/cmocka.c": "/home/elvenfighter/Projects/cmocka" -> "/tmp/cmocka-1"
+//    CMocka-2: Upload "src/cmocka.c": "/home/elvenfighter/Projects/cmocka" -> "/var/tmp/cmocka-2"
+//    CMockaTest-2: failure [25 ms]: /home/elvenfighter/Projects/cmocka-test: No such file
+//    CMockaTest-1: failure [41 ms]: /home/elvenfighter/Projects/cmocka-test: No such file
+
     const auto mappings = m_mapManager->mappingsForProject(project);
     if (! mappings) return;
 
