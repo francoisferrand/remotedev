@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <ui version="4.0">
- <class>RemoteDev::Internal::SettingsWidget</class>
- <widget class="QWidget" name="RemoteDev::Internal::SettingsWidget">
+ <class>RemoteDev::Internal::OptionsWidget</class>
+ <widget class="QWidget" name="RemoteDev::Internal::OptionsWidget">
   <property name="geometry">
    <rect>
     <x>0</x>

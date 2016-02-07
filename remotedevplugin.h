@@ -19,7 +19,7 @@ namespace ProjectExplorer { class Project; }
 namespace RemoteDev {
 namespace Internal {
 
-class ConnectionsPage;
+class OptionsPage;
 class ConnectionManager;
 class MappingsManager;
 class DeviceManager;
@@ -66,7 +66,7 @@ private:
     void showDebug(const QString &string) const;
 
 private:
-    ConnectionsPage *m_optionsPage;
+    OptionsPage *m_optionsPage;
 
     QAction *m_uploadFile;
     QAction *m_uploadDirectory;

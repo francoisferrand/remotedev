@@ -28,7 +28,7 @@
 
 #include "connectionhelper.h"
 #include "connectionmanager.h"
-#include "connectionspage.h"
+#include "optionspage.h"
 #include "projectsettingswidget.h"
 #include "devicemanager.h"
 #include "mappingsmanager.h"
@@ -274,7 +274,7 @@ void RemoteDevPlugin::upload(const Utils::FileName &file,
 
 void RemoteDevPlugin::createOptionsPage()
 {
-    m_optionsPage = new ConnectionsPage(this);
+    m_optionsPage = new OptionsPage(this);
     // TODO: load Core::ICore::settings();
     addAutoReleasedObject(m_optionsPage);
 }

@@ -16,11 +16,11 @@ namespace Internal {
 
 // TODO: IOptionsPageProvider should be used
 
-class ConnectionsPage : public Core::IOptionsPage
+class OptionsPage : public Core::IOptionsPage
 {
     Q_OBJECT
 public:
-    ConnectionsPage(QObject *parent = 0);
+    OptionsPage(QObject *parent = 0);
 
     QWidget *widget();
     void apply();
