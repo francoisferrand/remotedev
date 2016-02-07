@@ -29,7 +29,7 @@ SftpConnection::SftpConnection(const QString &alias,
             this, &SftpConnection::startJobs);
 
     connect(this, &SftpConnection::actionFinished,
-            this, &SftpConnection::takeJobAction);
+            this, &SftpConnection::startNextAction);
 }
 
 
@@ -51,7 +51,7 @@ RemoteJobId SftpConnection::uploadFile(Utils::FileName local,
 
     const auto localFile = local.appendPath(file.toString()).toString();
     const auto remoteFile = remote.appendPath(file.toString()).toString();
-    queue->enqueue([this, localFile, remoteFile, mode] (QSsh::SftpChannel *channel) -> QSsh::SftpJobId {
+    queue->enqueue([localFile, remoteFile, mode] (QSsh::SftpChannel *channel) -> QSsh::SftpJobId {
         auto id = channel->uploadFile(localFile, remoteFile, (QSsh::SftpOverwriteMode) mode);
         qDebug() << "SFTP" << "*" << id << ": upload file:"
                  << localFile << " -> " << remoteFile;
@@ -83,7 +83,7 @@ RemoteJobId SftpConnection::uploadDirectory(Utils::FileName local,
 
         const auto localDir = local.appendPath(directory.toString()).toString();
         const auto remoteDir = remote.appendPath(directory.toString()).parentDir().toString();
-        actions->enqueue([this, localDir, remoteDir/*, mode*/] (QSsh::SftpChannel *channel) -> QSsh::SftpJobId {
+        actions->enqueue([localDir, remoteDir] (QSsh::SftpChannel *channel) -> QSsh::SftpJobId {
             auto id = channel->uploadDir(localDir, remoteDir);
             qDebug() << "SFTP" << "*" << id << ": upload directory:"
                      << localDir << " -> " << remoteDir;
@@ -92,7 +92,7 @@ RemoteJobId SftpConnection::uploadDirectory(Utils::FileName local,
     } else {
         // relative path is empty -> have to upload contents of local to remote
         // have to work around stupid directoty upload policy of SftpChannel
-        enqueueUploadContents(actions, local, remote, mode);
+        enqueueUploadContents(*actions, local, remote, mode);
     }
 
     m_actions.insert(jobId, actions);
@@ -126,7 +126,7 @@ void SftpConnection::startJobs() {
         [this, channel] () {
             // FIXME: handle case when actions are empty at the start
             for (auto id : m_actions.keys()) {
-                takeJobAction(channel.data(), id);
+                this->startNextAction(channel.data(), id);
             }
         }
     );
@@ -140,7 +140,7 @@ void SftpConnection::startJobs() {
     channel->initialize();
 }
 
-void SftpConnection::takeJobAction(QSsh::SftpChannel *channel, RemoteJobId job)
+void SftpConnection::startNextAction(QSsh::SftpChannel *channel, RemoteJobId job)
 {
     auto queue = m_actions.value(job);
     if (! queue || queue->isEmpty()) return;
@@ -197,7 +197,7 @@ void SftpConnection::onJobFinished(QSsh::SftpChannel *channel,
     }
 }
 
-void SftpConnection::enqueueCreatePath(SftpConnection::RemoteJobQueue &queue,
+void SftpConnection::enqueueCreatePath(SftpConnection::RemoteJobQueue &actions,
                                        Utils::FileName remoteBase,
                                        const Utils::FileName &target)
 {
@@ -209,7 +209,7 @@ void SftpConnection::enqueueCreatePath(SftpConnection::RemoteJobQueue &queue,
         const auto remoteDir = remoteBase.appendPath(dir).toString();
         qDebug() << "Queue: create directory:" << remoteDir;
 
-        queue.enqueue([this, remoteDir] (QSsh::SftpChannel *channel) -> QSsh::SftpJobId {
+        actions.enqueue([remoteDir] (QSsh::SftpChannel *channel) -> QSsh::SftpJobId {
             auto id = channel->createDirectory(remoteDir);
             qDebug() << "SFTP" << "*" << id << ": create directory:" << remoteDir;
             return id;
@@ -217,7 +217,7 @@ void SftpConnection::enqueueCreatePath(SftpConnection::RemoteJobQueue &queue,
     }
 }
 
-void SftpConnection::enqueueUploadContents(RemoteJobQueue *actions,
+void SftpConnection::enqueueUploadContents(RemoteJobQueue &actions,
                                            Utils::FileName local,
                                            Utils::FileName remote,
                                            OverwriteMode mode)
@@ -233,7 +233,7 @@ void SftpConnection::enqueueUploadContents(RemoteJobQueue *actions,
             auto remoteFile = Utils::FileName(remote).appendPath(entry.fileName()).toString();
 
             qDebug() << "Queue: upload file:" << localFile << "->" << remoteFile;
-            actions->enqueue([localFile, remoteFile, mode] (QSsh::SftpChannel *channel) -> QSsh::SftpJobId {
+            actions.enqueue([localFile, remoteFile, mode] (QSsh::SftpChannel *channel) -> QSsh::SftpJobId {
                 auto action = channel->uploadFile(localFile, remoteFile, (QSsh::SftpOverwriteMode) mode);
                 qDebug() << "SFTP" << "*" << action << ": upload file: " << localFile << "->" << remoteFile;
                 return action;
@@ -242,7 +242,7 @@ void SftpConnection::enqueueUploadContents(RemoteJobQueue *actions,
             auto localDir = entry.filePath();
 
             qDebug() << "Queue: upload directory:" << localDir << "->" << remote.toString();
-            actions->enqueue([localDir, remote] (QSsh::SftpChannel *channel) -> QSsh::SftpJobId {
+            actions.enqueue([localDir, remote] (QSsh::SftpChannel *channel) -> QSsh::SftpJobId {
                 auto action = channel->uploadDir(localDir, remote.toString());
                 qDebug() << "SFTP" << "*" << action << ": upload directory" << localDir << "->" << remote.toString();
                 return action;

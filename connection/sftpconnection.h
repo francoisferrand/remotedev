@@ -61,19 +61,19 @@ signals:
 private:
     typedef QQueue<std::function<QSsh::SftpJobId (QSsh::SftpChannel *)>> RemoteJobQueue;
 
-    void enqueueCreatePath(RemoteJobQueue &queue,
-                           Utils::FileName remoteBase,
-                           const Utils::FileName &target);
+    static void enqueueCreatePath(RemoteJobQueue &actions,
+                                  Utils::FileName remoteBase,
+                                  const Utils::FileName &target);
 
-    void enqueueUploadContents(RemoteJobQueue *actions,
-                               Utils::FileName local,
-                               Utils::FileName remote,
-                               OverwriteMode mode);
+    static void enqueueUploadContents(RemoteJobQueue &actions,
+                                      Utils::FileName local,
+                                      Utils::FileName remote,
+                                      OverwriteMode mode);
 
 private slots:
     void startJobs();
 
-    void takeJobAction(QSsh::SftpChannel *channel, RemoteJobId job);
+    void startNextAction(QSsh::SftpChannel *channel, RemoteJobId job);
     void onActionFinished(QSsh::SftpChannel *channel,
                           QSsh::SftpJobId action, const QString &reason);
 
