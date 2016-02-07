@@ -1,3 +1,6 @@
-* Refactor time benchmarks for upload
-* Check thread safety
+* Check thread safety / use threads
 * Integrate with VCS plugins
+* Make proper GUI for per-project settings
+* Implement "Ignored Patterns" in per-project settings
+* Implement Donload and Synchronize options
+* Create "Remote Build Kit" functionality (huge task, needs splitting later)
