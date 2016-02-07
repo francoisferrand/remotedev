@@ -19,6 +19,8 @@ namespace RemoteDev {
 // Action   a single step on the way to complete a job, e.g.
 //          create directory
 
+namespace Internal { class SftpChannelHelper; }
+
 class SftpConnection : public Connection
 {
     Q_OBJECT
@@ -55,10 +57,8 @@ public:
     };
     Q_ENUM(AuthenticationType)
 
-signals:
-    void actionFinished(QSsh::SftpChannel *channel, RemoteJobId id);
-
 private:
+    friend class RemoteDev::Internal::SftpChannelHelper;
     typedef QQueue<std::function<QSsh::SftpJobId (QSsh::SftpChannel *)>> RemoteJobQueue;
 
     static void enqueueCreatePath(RemoteJobQueue &actions,
@@ -72,18 +72,11 @@ private:
 
 private slots:
     void startJobs();
-
-    void startNextAction(QSsh::SftpChannel *channel, RemoteJobId job);
-    void onActionFinished(QSsh::SftpChannel *channel,
-                          QSsh::SftpJobId action, const QString &reason);
-
-    void onJobFinished(QSsh::SftpChannel *channel,
-                       RemoteJobId job, const QString &reason = QString());
+    void onSshError(QSsh::SshError errorState);
 
 private:
     QSsh::SshConnection m_ssh;
     QHash<RemoteJobId, RemoteJobQueue *> m_actions;
-    QHash<QSsh::SftpJobId, RemoteJobId> m_jobs;
 };
 
 } // namespace RemoteDev

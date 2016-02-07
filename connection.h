@@ -78,7 +78,7 @@ signals:
      * @brief error - is emitted when connection error occurs
      * TODO this signal should be emitted together with error information
      */
-    void error();
+    void error(const QString &error = QString());
     void uploadError(RemoteJobId job, const QString &reason);
     void uploadFinished(RemoteJobId job);
 

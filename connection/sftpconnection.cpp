@@ -9,6 +9,8 @@
 #include <utils/fileutils.h>
 #include <ssh/sftpchannel.h>
 
+#include "sftpchannelhelper.h"
+
 using namespace RemoteDev;
 
 SftpConnection::SftpConnection(const QString &alias,
@@ -18,18 +20,16 @@ SftpConnection::SftpConnection(const QString &alias,
     m_ssh(serverInfo, parent)
 {
     connect(&m_ssh, &QSsh::SshConnection::error,
-            this, &Connection::error);
-    connect(&m_ssh, &QSsh::SshConnection::disconnected,
-            this, &Connection::disconnected);
+            this, &SftpConnection::onSshError);
     connect(&m_ssh, &QSsh::SshConnection::connected,
             this, &Connection::connected);
+    // FIXME: handle this internally also
+    connect(&m_ssh, &QSsh::SshConnection::disconnected,
+            this, &Connection::disconnected);
 
     // local methods
     connect(this, &Connection::connected,
             this, &SftpConnection::startJobs);
-
-    connect(this, &SftpConnection::actionFinished,
-            this, &SftpConnection::startNextAction);
 }
 
 
@@ -111,90 +111,27 @@ void SftpConnection::startJobs() {
     auto channel = m_ssh.createSftpChannel();
     if (! channel) {
         qDebug() << "Failed to create SFTP channel" << m_ssh.errorString();
-        emit error();
+        emit error(QStringLiteral("Failed to create SFTP channel: %1").arg(m_ssh.errorString()));
         return;
     }
 
-    connect(channel.data(), &QSsh::SftpChannel::channelError,
-        [this] (const QString &reason) {
-            qDebug() << "Channel error:" << reason;
-            emit error();
-        }
-    );
+    // helper becomes of the channel, will be destroyed together with the channel
+    auto helper = new Internal::SftpChannelHelper(channel.data(), m_actions);
 
-    connect(channel.data(), &QSsh::SftpChannel::initialized,
-        [this, channel] () {
-            // FIXME: handle case when actions are empty at the start
-            for (auto id : m_actions.keys()) {
-                this->startNextAction(channel.data(), id);
-            }
-        }
-    );
+    connect(helper, &Internal::SftpChannelHelper::jobFinished,
+            this, &SftpConnection::uploadFinished);
+    connect(helper, &Internal::SftpChannelHelper::jobError,
+            this, &Connection::uploadError);
+    connect(helper, &Internal::SftpChannelHelper::error,
+            this, &Connection::error);
 
-    connect(channel.data(), &QSsh::SftpChannel::finished,
-        [this, channel] (QSsh::SftpJobId action, const QString &reason) {
-            this->onActionFinished(channel.data(), action, reason);
-        }
-    );
-
-    channel->initialize();
+    helper->startJobs();
 }
 
-void SftpConnection::startNextAction(QSsh::SftpChannel *channel, RemoteJobId job)
+void SftpConnection::onSshError(QSsh::SshError errorState)
 {
-    auto queue = m_actions.value(job);
-    if (! queue || queue->isEmpty()) return;
-
-    auto actionId = queue->dequeue()(channel);
-    if (actionId != QSsh::SftpInvalidJob) {
-        m_jobs.insert(actionId, job);
-    } else {
-        qDebug() << "SFTP" << job << actionId
-                 << ": action failed" <<  m_ssh.errorString();
-
-        if (! queue->isEmpty()) {
-            emit actionFinished(channel, job);
-        } else {
-            const QString error = m_ssh.errorString().isEmpty()
-                    ? QStringLiteral("internal error")
-                    : m_ssh.errorString();
-
-            onJobFinished(channel, job, error);
-        }
-    }
-}
-
-void SftpConnection::onActionFinished(QSsh::SftpChannel *channel,
-                                      QSsh::SftpJobId action, const QString &reason)
-{
-    auto job = m_jobs.take(action);
-    auto actions = m_actions.value(job);
-    if (! actions->isEmpty()) {
-        qDebug() << "SFTP" << job << action << ": action finished:" << reason;
-        emit actionFinished(channel, job);
-    } else {
-        onJobFinished(channel, job, reason);
-    }
-}
-
-void SftpConnection::onJobFinished(QSsh::SftpChannel *channel,
-                                   RemoteJobId job, const QString &reason)
-{
-    auto actions = m_actions.take(job);
-    delete actions;
-
-    // when there is no more jobs running around,
-    // the channel can be closed
-    if (m_actions.isEmpty()) {
-        channel->closeChannel();
-    }
-
-    qDebug() << "SFTP" << job << "*" << ": job finished:" << reason;
-    if (reason.isEmpty()) {
-        emit uploadFinished(job);
-    } else {
-        emit uploadError(job, reason);
-    }
+    Q_UNUSED(errorState);
+    emit error(m_ssh.errorString());
 }
 
 void SftpConnection::enqueueCreatePath(SftpConnection::RemoteJobQueue &actions,

@@ -13,7 +13,8 @@ SOURCES += \
     mappingsmanager.cpp \
     devicemanager.cpp \
     settingswidget.cpp \
-    connectionhelper.cpp
+    connectionhelper.cpp \
+    connection/sftpchannelhelper.cpp
 
 HEADERS += \
     remotedevplugin.h \
@@ -29,7 +30,8 @@ HEADERS += \
     mappingsmanager.h \
     devicemanager.h \
     settingswidget.h \
-    connectionhelper.h
+    connectionhelper.h \
+    connection/sftpchannelhelper.h
 
 CONFIG += C++11
 
