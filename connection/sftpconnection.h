@@ -13,12 +13,6 @@
 
 namespace RemoteDev {
 
-// TERMINOLOGY
-// Job      a queue of actions to achieve some result, e.g.
-//          upload file and create parent directories (if necessary)
-// Action   a single step on the way to complete a job, e.g.
-//          create directory
-
 namespace Internal { class SftpChannelHelper; }
 
 class SftpConnection : public Connection
@@ -43,19 +37,6 @@ public:
                                 OverwriteMode mode);
 
     QString errorString() const;
-
-    enum AuthenticationType {
-        AuthenticationTypePassword = QSsh::SshConnectionParameters::AuthenticationTypePassword,
-        AuthenticationTypePublicKey = QSsh::SshConnectionParameters::AuthenticationTypePublicKey,
-        AuthenticationTypeKeyboardInteractive = QSsh::SshConnectionParameters::AuthenticationTypeKeyboardInteractive,
-
-        // this one is not provided by QSsh
-        AuthenticationTypeHostBased = QSsh::SshConnectionParameters::AuthenticationTypeTryAllPasswordBasedMethods + 1,
-
-        // Some servers disable "password", others disable "keyboard-interactive".
-        AuthenticationTypeTryAllPasswordBasedMethods = QSsh::SshConnectionParameters::AuthenticationTypeTryAllPasswordBasedMethods
-    };
-    Q_ENUM(AuthenticationType)
 
 private:
     friend class RemoteDev::Internal::SftpChannelHelper;

@@ -15,6 +15,12 @@ namespace QSsh { class SftpChannel; }
 namespace RemoteDev {
 namespace Internal {
 
+// TERMINOLOGY
+// Job      a queue of actions to achieve some result, e.g.
+//          upload file and create parent directories (if necessary)
+// Action   a single step on the way to complete a job, e.g.
+//          create directory
+
 class SftpChannelHelper : public QObject
 {
     Q_OBJECT
