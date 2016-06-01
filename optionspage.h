@@ -1,5 +1,7 @@
-#ifndef REMOTEOPTIONSPAGE_H
-#define REMOTEOPTIONSPAGE_H
+#ifndef OPTIONSPAGE_H
+#define OPTIONSPAGE_H
+
+#pragma once
 
 #include "remotedev_global.h"
 
@@ -33,4 +35,4 @@ private:
 } // namespace Internal
 } // namespace RemoteDev
 
-#endif // REMOTEOPTIONSPAGE_H
+#endif // OPTIONSPAGE_H

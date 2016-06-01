@@ -1,5 +1,7 @@
-#ifndef REMOTEOPTIONSWIDGET_H
-#define REMOTEOPTIONSWIDGET_H
+#ifndef OPTIONSWIDGET_H
+#define OPTIONSWIDGET_H
+
+#pragma once
 
 #include <QWidget>
 
@@ -30,4 +32,4 @@ private:
 } // namespace Interal
 } // namespace RemoteDev
 
-#endif // REMOTEOPTIONSWIDGET_H
+#endif // OPTIONSWIDGET_H

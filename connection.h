@@ -1,5 +1,5 @@
-#ifndef REMOTECONNECTION_H
-#define REMOTECONNECTION_H
+#ifndef CONNECTION_H
+#define CONNECTION_H
 
 #pragma once
 
@@ -96,4 +96,4 @@ private:
 
 } // namespace RemoteDev
 
-#endif // REMOTECONNECTION_H
+#endif // CONNECTION_H
