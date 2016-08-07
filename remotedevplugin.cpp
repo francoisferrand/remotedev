@@ -163,10 +163,10 @@ void RemoteDevPlugin::uploadCurrentNode()
 //    ProjectNodeType,
 //    SessionNodeType
     case ProjectExplorer::FileNodeType:
-        upload(node->path(), project, &Connection::uploadFile);
+        upload(node->filePath(), project, &Connection::uploadFile);
         break;
     case ProjectExplorer::FolderNodeType:
-        upload(node->path(), project, &Connection::uploadDirectory);
+        upload(node->filePath(), project, &Connection::uploadDirectory);
         break;
     case ProjectExplorer::ProjectNodeType: {
         upload(project->projectDirectory(), project, &Connection::uploadDirectory);
