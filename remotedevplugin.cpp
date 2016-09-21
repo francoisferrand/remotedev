@@ -21,6 +21,7 @@
 #include <projectexplorer/devicesupport/devicemanager.h>
 #include <projectexplorer/project.h>
 #include <projectexplorer/session.h>
+#include <projectexplorer/propertiespanel.h>
 #include <projectexplorer/projectpanelfactory.h>
 #include <projectexplorer/projecttree.h>
 #include <projectexplorer/projectexplorerconstants.h>
@@ -84,8 +85,8 @@ bool RemoteDevPlugin::initialize(const QStringList &arguments, QString *errorStr
     // NOTE: currentEditorChanged is also triggered upon editorOpened
     // connect(editorManager, &Core::EditorManager::editorOpened,
     //         this, &RemoteDevPlugin::uploadCurrentDocument);
-    connect(editorManager, &Core::EditorManager::currentEditorChanged,
-            this, &RemoteDevPlugin::uploadCurrentDocument);
+//    connect(editorManager, &Core::EditorManager::currentEditorChanged,
+//            this, &RemoteDevPlugin::uploadCurrentDocument);
 
     QAction *saveAction = Core::ActionManager::command(Core::Constants::SAVE)->action();
     connect(saveAction, &QAction::triggered,
@@ -290,7 +291,7 @@ void RemoteDevPlugin::createProjectSettingsPage()
 
     panelFactory->setCreateWidgetFunction(
         [this, panelFactory] (ProjectExplorer::Project *project) -> QWidget * {
-            auto panel = new ProjectExplorer::PropertiesPanel ();
+            auto panel = new ProjectExplorer::PropertiesPanel;
             panel->setDisplayName(tr("Remote Mappings"));
 
             auto widget = new ProjectSettingsWidget(project);
@@ -349,7 +350,7 @@ void RemoteDevPlugin::createFileMenus()
 
 void RemoteDevPlugin::showDebug(const QString &string) const
 {
-    auto *messageManager = qobject_cast<Core::MessageManager *>(Core::MessageManager::instance());
-    messageManager->write(string, { Core::MessageManager::NoModeSwitch });
+    auto messageManager = qobject_cast<Core::MessageManager *>(Core::MessageManager::instance());
+    messageManager->write(string, Core::MessageManager::Silent);
 }
 
