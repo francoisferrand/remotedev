@@ -21,7 +21,7 @@
 #include <projectexplorer/devicesupport/devicemanager.h>
 #include <projectexplorer/project.h>
 #include <projectexplorer/session.h>
-#include <projectexplorer/propertiespanel.h>
+//#include <projectexplorer/propertiespanel.h>
 #include <projectexplorer/projectpanelfactory.h>
 #include <projectexplorer/projecttree.h>
 #include <projectexplorer/projectexplorerconstants.h>
@@ -81,7 +81,7 @@ bool RemoteDevPlugin::initialize(const QStringList &arguments, QString *errorStr
     menu->addAction(cmd);
     Core::ActionManager::actionContainer(Core::Constants::M_TOOLS)->addMenu(menu);
 
-    auto *editorManager = Core::EditorManager::instance();
+    //auto *editorManager = Core::EditorManager::instance();
     // NOTE: currentEditorChanged is also triggered upon editorOpened
     // connect(editorManager, &Core::EditorManager::editorOpened,
     //         this, &RemoteDevPlugin::uploadCurrentDocument);
@@ -291,18 +291,19 @@ void RemoteDevPlugin::createProjectSettingsPage()
 
     panelFactory->setCreateWidgetFunction(
         [this, panelFactory] (ProjectExplorer::Project *project) -> QWidget * {
-            auto panel = new ProjectExplorer::PropertiesPanel;
-            panel->setDisplayName(tr("Remote Mappings"));
+//            auto panel = new ProjectExplorer::PropertiesPanel;
+//            panel->setDisplayName(tr("Remote Mappings"));
 
             auto widget = new ProjectSettingsWidget(project);
 
             widget->setMappingsModel(m_mapManager->mappingsForProject(project));
             widget->setDevicesModel(m_devManager->devices());
 
-            panel->setWidget(widget);
+//            panel->setWidget(widget);
 
             auto panelsWidget = new ProjectExplorer::PanelsWidget();
-            panelsWidget->addPropertiesPanel(panel);
+            panelsWidget->addPropertiesPanel(tr("RemoteDev"), QIcon(), widget /* panel*/);
+//            panelsWidget->addPropertiesPanel(panel);
             panelsWidget->setFocusProxy(widget);
 
             return panelsWidget;

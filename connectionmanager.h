@@ -5,6 +5,7 @@
 
 #include <QMutex>
 #include <QSharedPointer>
+#include <QHash>
 
 // FIXME: declare these locally: Core!
 //#include <coreplugin/id.h>
