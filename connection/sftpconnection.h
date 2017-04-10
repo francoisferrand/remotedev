@@ -13,7 +13,7 @@
 
 namespace RemoteDev {
 
-namespace Internal { class SftpChannelHelper; }
+namespace Internal { class SftpChannelExecutor; }
 
 class SftpConnection : public Connection
 {
@@ -39,7 +39,7 @@ public:
     QString errorString() const;
 
 private:
-    friend class RemoteDev::Internal::SftpChannelHelper;
+    friend class RemoteDev::Internal::SftpChannelExecutor;
     typedef QQueue<std::function<QSsh::SftpJobId (QSsh::SftpChannel *)>> RemoteJobQueue;
 
     static void enqueueCreatePath(RemoteJobQueue &actions,
@@ -54,6 +54,9 @@ private:
 private slots:
     void startJobs();
     void onSshError(QSsh::SshError errorState);
+
+    void onUploadFinished(RemoteJobId job, RemoteJobQueue *leftovers);
+    void onUploadError(RemoteJobId job, const QString& error, RemoteJobQueue *leftovers);
 
 private:
     QSsh::SshConnection m_ssh;

@@ -21,18 +21,18 @@ namespace Internal {
 // Action   a single step on the way to complete a job, e.g.
 //          create directory
 
-class SftpChannelHelper : public QObject
+class SftpChannelExecutor : public QObject
 {
     Q_OBJECT
 public:
     using RemoteJobQueue = SftpConnection::RemoteJobQueue;
-    SftpChannelHelper(QSsh::SftpChannel *parent,
-                      QHash<RemoteJobId, RemoteJobQueue *> &actions);
+    SftpChannelExecutor(QSsh::SftpChannel *parent,
+                      QHash<RemoteJobId, RemoteJobQueue *> &&actions);
 
 signals:
     void error(const QString &reason = QString());
-    void jobFinished(RemoteJobId job);
-    void jobError(RemoteJobId job, const QString &error);
+    void jobFinished(RemoteJobId job, RemoteJobQueue* leftoverActions);
+    void jobError(RemoteJobId job, const QString &error, RemoteJobQueue* leftoverActions);
 
     void actionFinished(RemoteJobId job);
 
@@ -49,7 +49,7 @@ private slots:
     void onChannelError(const QString &reason);
 
     void startNextAction(RemoteJobId job);
-    void onActionFinished(QSsh::SftpJobId action, const QString &error);
+    void onChannelFinished(QSsh::SftpJobId action, const QString &error);
 
 private:
     QHash<RemoteJobId, RemoteJobQueue *> m_actions;

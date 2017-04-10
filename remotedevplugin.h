@@ -33,16 +33,16 @@ public:
     RemoteDevPlugin();
     ~RemoteDevPlugin();
 
-    bool initialize(const QStringList &arguments, QString *errorString);
-    void extensionsInitialized();
-    bool delayedInitialize();
-    ShutdownFlag aboutToShutdown();
+    bool initialize(const QStringList &arguments, QString *errorString) override;
+    void extensionsInitialized() override;
+    bool delayedInitialize() override;
+    ShutdownFlag aboutToShutdown() override;
 
 private:
-    typedef RemoteJobId (Connection::*UploadMethod)(Utils::FileName,
-                                                    Utils::FileName,
-                                                    const Utils::FileName &,
-                                                    OverwriteMode);
+    using UploadMethod = RemoteJobId (Connection::*)(Utils::FileName,
+                                                     Utils::FileName,
+                                                     const Utils::FileName&,
+                                                     OverwriteMode);
 
 public slots:
     void uploadCurrentDocument();

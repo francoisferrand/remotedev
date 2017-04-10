@@ -85,8 +85,8 @@ bool RemoteDevPlugin::initialize(const QStringList &arguments, QString *errorStr
     // NOTE: currentEditorChanged is also triggered upon editorOpened
     // connect(editorManager, &Core::EditorManager::editorOpened,
     //         this, &RemoteDevPlugin::uploadCurrentDocument);
-//    connect(editorManager, &Core::EditorManager::currentEditorChanged,
-//            this, &RemoteDevPlugin::uploadCurrentDocument);
+    // connect(editorManager, &Core::EditorManager::currentEditorChanged,
+    //         this, &RemoteDevPlugin::uploadCurrentDocument);
 
     QAction *saveAction = Core::ActionManager::command(Core::Constants::SAVE)->action();
     connect(saveAction, &QAction::triggered,
@@ -153,16 +153,11 @@ void RemoteDevPlugin::uploadCurrentDocument()
 void RemoteDevPlugin::uploadCurrentNode()
 {
     auto node = ProjectExplorer::ProjectTree::currentNode();
-    if (! node) return;
+    if (!node) return;
 
     auto project = ProjectExplorer::ProjectTree::projectForNode(node);
 
     switch (node->nodeType()) {
-//    FileNodeType = 1,
-//    FolderNodeType,
-//    VirtualFolderNodeType,
-//    ProjectNodeType,
-//    SessionNodeType
     case ProjectExplorer::FileNodeType:
         upload(node->filePath(), project, &Connection::uploadFile);
         break;
@@ -173,9 +168,11 @@ void RemoteDevPlugin::uploadCurrentNode()
         upload(project->projectDirectory(), project, &Connection::uploadDirectory);
         break;
     }
+    case ProjectExplorer::VirtualFolderNodeType:
+    case ProjectExplorer::SessionNodeType:
     default:
-        showDebug(QStringLiteral("FIXME: unsupported node type ProjectExplorer::%1")
-                  .arg(node->nodeType()));
+        showDebug(
+          QStringLiteral("FIXME: unsupported node type ProjectExplorer::%1").arg(node->nodeType()));
     }
 }
 
@@ -199,18 +196,17 @@ void RemoteDevPlugin::upload(const Utils::FileName &file,
                              ProjectExplorer::Project *project,
                              RemoteDevPlugin::UploadMethod uploadMethod)
 {
-    project = project ? project
-                      : ProjectExplorer::SessionManager::projectForFile(file);
-    if (! project) {
+    project = project ? project : ProjectExplorer::SessionManager::projectForFile(file);
+    if (!project) {
         qDebug() << "No project for file: " << file;
         return;
     }
 
-//    FIXME:
-//    CMocka-1: Upload "src/cmocka.c": "/home/elvenfighter/Projects/cmocka" -> "/tmp/cmocka-1"
-//    CMocka-2: Upload "src/cmocka.c": "/home/elvenfighter/Projects/cmocka" -> "/var/tmp/cmocka-2"
-//    CMockaTest-2: failure [25 ms]: /home/elvenfighter/Projects/cmocka-test: No such file
-//    CMockaTest-1: failure [41 ms]: /home/elvenfighter/Projects/cmocka-test: No such file
+    //    FIXME:
+    //    CMocka-1: Upload "src/cmocka.c": "/home/elvenfighter/Projects/cmocka" -> "/tmp/cmocka-1"
+    //    CMocka-2: Upload "src/cmocka.c": "/home/elvenfighter/Projects/cmocka" -> "/var/tmp/cmocka-2"
+    //    CMockaTest-2: failure [25 ms]: /home/elvenfighter/Projects/cmocka-test: No such file
+    //    CMockaTest-1: failure [41 ms]: /home/elvenfighter/Projects/cmocka-test: No such file
 
     const auto mappings = m_mapManager->mappingsForProject(project);
     if (! mappings) return;
@@ -223,7 +219,7 @@ void RemoteDevPlugin::upload(const Utils::FileName &file,
 
     auto deviceMgr = ProjectExplorer::DeviceManager::instance();
     for (int i = 0; i < mappings->rowCount(); i++) {
-        if (! MappingsManager::isEnabled(*mappings, i)) continue;
+        if (!MappingsManager::isEnabled(*mappings, i)) continue;
 
         auto mappingName = MappingsManager::mappingName(*mappings, i);
 
@@ -265,7 +261,7 @@ void RemoteDevPlugin::upload(const Utils::FileName &file,
             );
         }
 
-        helper->startJob([&] () -> RemoteJobId {
+        helper->startJob([&]() {
             auto job = (connection.data()->*uploadMethod)(local, remote, relpath, OverwriteExisting);
             qDebug() << "Started job" << mappingName << "->" << job;
             return job;
@@ -323,24 +319,20 @@ void RemoteDevPlugin::createFileMenus()
 
     // "Upload File" menu
     m_uploadFile = new QAction(tr("Upload File"), this);
-    auto cmd = Core::ActionManager::registerAction(
-                m_uploadFile, Constants::UPLOAD_FILE, projectTreeContext);
+    auto cmd = Core::ActionManager::registerAction(m_uploadFile, Constants::UPLOAD_FILE,
+                                                   projectTreeContext);
 
     fileContextMenu->addAction(cmd, ProjectExplorer::Constants::G_FILE_OTHER);
     connect(m_uploadFile, &QAction::triggered,
             this, &RemoteDevPlugin::uploadCurrentNode);
 
     // "Upload Directory" menu
-    auto folderContextMenu = Core::ActionManager::actionContainer(
-                ProjectExplorer::Constants::M_FOLDERCONTEXT);
-    auto projectContextMenu = Core::ActionManager::actionContainer(
-                ProjectExplorer::Constants::M_PROJECTCONTEXT);
-    auto subProjectContextMenu = Core::ActionManager::actionContainer(
-                ProjectExplorer::Constants::M_SUBPROJECTCONTEXT);
+    auto folderContextMenu = Core::ActionManager::actionContainer(ProjectExplorer::Constants::M_FOLDERCONTEXT);
+    auto projectContextMenu = Core::ActionManager::actionContainer(ProjectExplorer::Constants::M_PROJECTCONTEXT);
+    auto subProjectContextMenu = Core::ActionManager::actionContainer(ProjectExplorer::Constants::M_SUBPROJECTCONTEXT);
 
     m_uploadDirectory = new QAction(tr("Upload Directory"), this);
-    cmd = Core::ActionManager::registerAction(
-                m_uploadDirectory, Constants::UPLOAD_DIRECTORY, projectTreeContext);
+    cmd = Core::ActionManager::registerAction(m_uploadDirectory, Constants::UPLOAD_DIRECTORY, projectTreeContext);
 
     folderContextMenu->addAction(cmd, ProjectExplorer::Constants::G_FOLDER_OTHER);
     projectContextMenu->addAction(cmd, ProjectExplorer::Constants::G_PROJECT_FILES);
@@ -351,7 +343,7 @@ void RemoteDevPlugin::createFileMenus()
 
 void RemoteDevPlugin::showDebug(const QString &string) const
 {
-    auto messageManager = qobject_cast<Core::MessageManager *>(Core::MessageManager::instance());
+    auto messageManager = Core::MessageManager::instance();
     messageManager->write(string, Core::MessageManager::Silent);
 }
 

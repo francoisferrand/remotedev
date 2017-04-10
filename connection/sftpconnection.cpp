@@ -9,9 +9,9 @@
 #include <utils/fileutils.h>
 #include <ssh/sftpchannel.h>
 
-#include "sftpchannelhelper.h"
+#include "sftpchannelexecutor.h"
 
-using namespace RemoteDev;
+namespace RemoteDev {
 
 SftpConnection::SftpConnection(const QString &alias,
                                const QSsh::SshConnectionParameters &serverInfo,
@@ -51,8 +51,8 @@ RemoteJobId SftpConnection::uploadFile(Utils::FileName local,
 
     const auto localFile = local.appendPath(file.toString()).toString();
     const auto remoteFile = remote.appendPath(file.toString()).toString();
-    queue->enqueue([localFile, remoteFile, mode] (QSsh::SftpChannel *channel) -> QSsh::SftpJobId {
-        auto id = channel->uploadFile(localFile, remoteFile, (QSsh::SftpOverwriteMode) mode);
+    queue->enqueue([localFile, remoteFile, mode] (QSsh::SftpChannel *channel) {
+        auto id = channel->uploadFile(localFile, remoteFile, static_cast<QSsh::SftpOverwriteMode>(mode));
         qDebug() << "SFTP" << "*" << id << ": upload file:"
                  << localFile << " -> " << remoteFile;
         return id;
@@ -83,7 +83,7 @@ RemoteJobId SftpConnection::uploadDirectory(Utils::FileName local,
 
         const auto localDir = local.appendPath(directory.toString()).toString();
         const auto remoteDir = remote.appendPath(directory.toString()).parentDir().toString();
-        actions->enqueue([localDir, remoteDir] (QSsh::SftpChannel *channel) -> QSsh::SftpJobId {
+        actions->enqueue([localDir, remoteDir] (QSsh::SftpChannel *channel) {
             auto id = channel->uploadDir(localDir, remoteDir);
             qDebug() << "SFTP" << "*" << id << ": upload directory:"
                      << localDir << " -> " << remoteDir;
@@ -115,14 +115,15 @@ void SftpConnection::startJobs() {
         return;
     }
 
-    // helper becomes of the channel, will be destroyed together with the channel
-    auto helper = new Internal::SftpChannelHelper(channel.data(), m_actions);
+    // helper becomes child of the channel, will be destroyed together with the channel
+    auto helper = new Internal::SftpChannelExecutor(channel.data(), std::move(m_actions));
+    m_actions.clear();
 
-    connect(helper, &Internal::SftpChannelHelper::jobFinished,
-            this, &SftpConnection::uploadFinished);
-    connect(helper, &Internal::SftpChannelHelper::jobError,
-            this, &Connection::uploadError);
-    connect(helper, &Internal::SftpChannelHelper::error,
+    connect(helper, &Internal::SftpChannelExecutor::jobFinished,
+            this, &SftpConnection::onUploadFinished);
+    connect(helper, &Internal::SftpChannelExecutor::jobError,
+            this, &SftpConnection::onUploadError);
+    connect(helper, &Internal::SftpChannelExecutor::error,
             this, &Connection::error);
 
     helper->startJobs();
@@ -132,6 +133,18 @@ void SftpConnection::onSshError(QSsh::SshError errorState)
 {
     Q_UNUSED(errorState);
     emit error(m_ssh.errorString());
+}
+
+void SftpConnection::onUploadFinished(RemoteJobId job, SftpConnection::RemoteJobQueue *leftovers)
+{
+    delete leftovers;
+    emit Connection::uploadFinished(job);
+}
+
+void SftpConnection::onUploadError(RemoteJobId job, const QString &error, SftpConnection::RemoteJobQueue *leftovers)
+{
+    delete leftovers;
+    emit Connection::uploadError(job, error);
 }
 
 void SftpConnection::enqueueCreatePath(SftpConnection::RemoteJobQueue &actions,
@@ -194,3 +207,5 @@ QString SftpConnection::errorString() const
 {
     return m_ssh.errorString();
 }
+
+} // namespace RemoteDev

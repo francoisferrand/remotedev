@@ -11,9 +11,9 @@ SOURCES += \
     mappingsmanager.cpp \
     devicemanager.cpp \
     connectionhelper.cpp \
-    connection/sftpchannelhelper.cpp \
     optionspage.cpp \
-    optionswidget.cpp
+    optionswidget.cpp \
+    connection/sftpchannelexecutor.cpp
 
 HEADERS += \
     remotedevplugin.h \
@@ -27,11 +27,11 @@ HEADERS += \
     mappingsmanager.h \
     devicemanager.h \
     connectionhelper.h \
-    connection/sftpchannelhelper.h \
     optionspage.h \
-    optionswidget.h
+    optionswidget.h \
+    connection/sftpchannelexecutor.h
 
-CONFIG += C++11
+CONFIG += C++14
 
 # Qt Creator linking
 
