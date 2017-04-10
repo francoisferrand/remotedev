@@ -6,7 +6,7 @@ AccessModifierOffset:           -4
 # BAS_Align (in configuration: Align) Align parameters on the open bracket
 AlignAfterOpenBracket:                              Align
 # If true, aligns consecutive assignments.
-AlignConsecutiveAssignments:                        true
+AlignConsecutiveAssignments:                        false
 # If true, aligns consecutive declarations.
 # NOTE: consider true
 AlignConsecutiveDeclarations:                       false
@@ -66,8 +66,7 @@ BreakConstructorInitializersBeforeComma:            false
 # Allow breaking string literals when formatting.
 BreakStringLiterals:                                true
 # The column limit.
-# NOTE: consider 0
-ColumnLimit:                                        100
+ColumnLimit:                                        0
 # If the constructor initializers don’t fit on a line, put each initializer on its own line.
 ConstructorInitializerAllOnOneLineOrOnePerLine:     true
 # The number of characters to use for indentation of constructor initializer lists.
