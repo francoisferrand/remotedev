@@ -1,0 +1,155 @@
+---
+Language: Cpp
+
+# The extra indent or outdent of access modifiers, e.g. public:.
+AccessModifierOffset:           -4
+# BAS_Align (in configuration: Align) Align parameters on the open bracket
+AlignAfterOpenBracket:                              Align
+# If true, aligns consecutive assignments.
+AlignConsecutiveAssignments:                        true
+# If true, aligns consecutive declarations.
+# NOTE: consider true
+AlignConsecutiveDeclarations:                       false
+# If true, aligns escaped newlines as far left as possible. Otherwise puts them into the right-most column.
+AlignEscapedNewlinesLeft:                           false
+# If true, horizontally align operands of binary and ternary expressions.
+AlignOperands:                                      true
+# If true, aligns trailing comments.
+AlignTrailingComments:                              true
+# Allow putting all parameters of a function declaration onto the next line even if BinPackParameters is false.
+AllowAllParametersOfDeclarationOnNextLine:          true
+# Allows contracting simple braced statements to a single line.
+AllowShortBlocksOnASingleLine:                      true
+# If true, short case labels will be contracted to a single line.
+AllowShortCaseLabelsOnASingleLine:                  false
+# Dependent on the value, int f() { return 0; } can be put on a single line.
+AllowShortFunctionsOnASingleLine:                   All
+# If true, if (a) return; can be put on a single line.
+# NOTE: consider false
+AllowShortIfStatementsOnASingleLine:                true
+# If true, while (true) continue; can be put on a single line.
+AllowShortLoopsOnASingleLine:                       true
+# The function declaration return type breaking style to use.
+AlwaysBreakAfterReturnType:                         None
+# If true, always break before multiline string literals.
+AlwaysBreakBeforeMultilineStrings:                  false
+# If true, always break after the template<...> of a template declaration.
+# NOTE: consider false
+AlwaysBreakTemplateDeclarations:                    true
+# If false, a function call’s arguments will either be all on the same line or will have one line each.
+BinPackArguments:                                   false
+# If false, a function declaration’s or function definition’s parameters will either all be on the same line or will have one line each.
+BinPackParameters:                                  false
+# Control of individual brace wrapping cases.
+BraceWrapping:
+    AfterClass:             false
+    AfterControlStatement:  false
+    AfterEnum:              false
+    AfterFunction:          true
+    AfterNamespace:         false
+    AfterStruct:            false
+    AfterUnion:             false
+    BeforeCatch:            false
+    BeforeElse:             false
+# The way to wrap binary operators.
+BreakBeforeBinaryOperators:                         NonAssignment
+# The brace breaking style to use.
+BreakBeforeBraces:                                  Custom
+## If true, in the class inheritance expression clang-format will break before : and , if there is multiple inheritance.
+## NOTE: introduced in Clang 5.0
+#BreakBeforeInheritanceComma:                        false
+# If true, ternary operators will be placed after line breaks.
+BreakBeforeTernaryOperators:                        true
+# Always break constructor initializers before commas and align the commas with the colon.
+# NOTE: consider true
+BreakConstructorInitializersBeforeComma:            false
+# Allow breaking string literals when formatting.
+BreakStringLiterals:                                true
+# The column limit.
+# NOTE: consider 0
+ColumnLimit:                                        100
+# If the constructor initializers don’t fit on a line, put each initializer on its own line.
+ConstructorInitializerAllOnOneLineOrOnePerLine:     true
+# The number of characters to use for indentation of constructor initializer lists.
+ConstructorInitializerIndentWidth:                  4
+# Indent width for line continuations.
+# NOTE: consider 4
+ContinuationIndentWidth:                            2
+# If true, format braced lists as best suited for C++11 braced lists.
+# NOTE: consider false
+Cpp11BracedListStyle:                               true
+# If true, analyze the formatted file for the most common alignment of & and *. PointerAlignment is then used only as fallback.
+DerivePointerAlignment:                             false
+# If true, clang-format adds missing namespace end comments and fixes invalid existing ones.
+# NOTE: introduced in Clang 5.0
+#FixNamespaceComments:                               true
+# A vector of macros that should be interpreted as foreach loops instead of as function calls.
+ForEachMacros: []
+# Indent case labels one level from the switch statement.
+IndentCaseLabels:                                   false
+# The number of columns to use for indentation.
+# NOTE: consider 2
+IndentWidth:                                        4
+# Indent if a function definition or declaration is wrapped after the type.
+# NOTE: consider false
+IndentWrappedFunctionNames:                         true
+# If true, empty lines at the start of blocks are kept.
+KeepEmptyLinesAtTheStartOfBlocks:                   false
+# The maximum number of consecutive empty lines to keep.
+MaxEmptyLinesToKeep:                                2
+# The indentation used for namespaces.
+NamespaceIndentation:                               None
+
+# The penalty for breaking a function call after call(.
+PenaltyBreakBeforeFirstCallParameter:               100
+# The penalty for each line break introduced inside a comment.
+PenaltyBreakComment:                                100
+# The penalty for breaking before the first <<.
+PenaltyBreakFirstLessLess:                          100
+# The penalty for each line break introduced inside a string literal.
+PenaltyBreakString:                                 10
+# The penalty for each character outside of the column limit.
+PenaltyExcessCharacter:                             10
+# Penalty for putting the return type of a function onto its own line.
+PenaltyReturnTypeOnItsOwnLine:                      0
+
+# Pointer and reference alignment style.
+PointerAlignment:                                   Right
+# If true, clang-format will attempt to re-flow comments.
+ReflowComments:                                     false
+# If true, clang-format will sort #includes.
+SortIncludes:                                       true
+
+# If true, a space is inserted after C style casts.
+SpaceAfterCStyleCast:                               true
+# If true, a space will be inserted after the ‘template’ keyword.
+SpaceAfterTemplateKeyword:                          true
+# If false, spaces will be removed before assignment operators.
+SpaceBeforeAssignmentOperators:                     true
+# Defines in which cases to put a space before opening parentheses.
+# Put a space before opening parentheses only after control statement keywords (for/if/while...).
+SpaceBeforeParens:                                  ControlStatements
+# If true, spaces may be inserted into ().
+SpaceInEmptyParentheses:                            false
+# The number of spaces before trailing line comments (// - comments).
+# NOTEL consider 3
+SpacesBeforeTrailingComments:                       1
+# If true, spaces will be inserted after < and before > in template argument lists.
+SpacesInAngles:                                     false
+# If true, spaces may be inserted into C style casts.
+SpacesInCStyleCastParentheses:                      false
+# If true, spaces are inserted inside container literals (e.g. ObjC and Javascript array and dict literals).
+# NOTE: consider true
+SpacesInContainerLiterals:                          false
+# If true, spaces will be inserted after ( and before ).
+SpacesInParentheses:                                false
+# If true, spaces will be inserted after [ and before ]. Lambdas or unspecified size array declarations will not be affected.
+SpacesInSquareBrackets:                             false
+# Format compatible with this standard, e.g. use A<A<int> > instead of A<A<int>> for LS_Cpp03
+Standard:                                           Cpp11
+# The number of columns used for tab stops.
+TabWidth:                                           4
+# The way to use tab characters in the resulting file.
+UseTab:                                             Never
+
+...
