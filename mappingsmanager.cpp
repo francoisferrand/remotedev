@@ -8,105 +8,85 @@
 
 #include <QDebug>
 
-using namespace RemoteDev::Internal;
+
+namespace RemoteDev {
+namespace Internal {
 
 MappingsManager::MappingsManager(QObject *parent) :
     QObject(parent)
 {}
 
-QStandardItemModel *MappingsManager::mappingsForProject(ProjectExplorer::Project *project)
+const std::vector<Mapping> &MappingsManager::mappingsForProject(ProjectExplorer::Project &project)
 {
-    QStandardItemModel *mappings = nullptr;
-    if (! project) return mappings; // do not insert nullptr
+    return mappingsMetaForProject(project).mappings;
+}
 
-    if (m_mappings.contains(project)) {
-        mappings = m_mappings.value(project);
-    } else {
-        connect(project, &ProjectExplorer::Project::aboutToSaveSettings,
-                [this, project] () { this->saveProjectMappings(project); });
+void MappingsManager::addMapping(const ProjectExplorer::Project &project,
+                                 const QString &name,
+                                 bool isEnabled,
+                                 const Core::Id &deviceId,
+                                 const QString &remotePath)
+{
+    auto &projectMappings = m_mappings[&project];
 
-        mappings = readProjectMappings(project);
-        mappings->setParent(this);
-        m_mappings.insert(project, mappings);
+    projectMappings.mappings.emplace_back(
+        Mapping(name, isEnabled, deviceId, remotePath, *projectMappings.storage)
+    );
+}
+
+QStandardItemModel &MappingsManager::storageForProject(ProjectExplorer::Project &project)
+{
+    return *mappingsMetaForProject(project).storage;
+}
+
+MappingsManager::MappingsMeta MappingsManager::readProjectMappings(const ProjectExplorer::Project &project) const
+{
+    qDebug() << "Restoring project mappings:" << project.displayName();
+
+    MappingsMeta mappings{new QStandardItemModel(0, Constants::MAP_COLUMNS_COUNT), {}};
+
+    auto items = project.namedSettings(QLatin1String(Constants::SETTINGS_GROUP)).toMap()
+                        .value(QLatin1String(Constants::MAPPINGS_GROUP)).toList();
+
+    for (auto &item : items) {
+        mappings.mappings.emplace_back(Mapping::fromMap(item.toMap(), *mappings.storage));
     }
 
     return mappings;
 }
 
-bool MappingsManager::isEnabled(const QStandardItemModel &mappings, int index)
+void MappingsManager::saveProjectMappings(ProjectExplorer::Project &project)
 {
-    return mappings.item(index, Constants::MAP_ENABLED_COLUMN)->data(Qt::CheckStateRole).toBool();
-}
+    if (!m_mappings.contains(&project)) return;
 
-Core::Id MappingsManager::deviceId(const QStandardItemModel &mappings, int index)
-{
-    return Core::Id::fromSetting(
-        mappings.item(index, Constants::MAP_DEVICE_COLUMN)->data(Constants::DEV_ID_ROLE)
-    );
-}
-
-QString MappingsManager::mappingName(const QStandardItemModel &mappings, int index)
-{
-    return mappings.item(index, Constants::MAP_NAME_COLUMN)->text();
-}
-
-Utils::FileName MappingsManager::remotePath(const QStandardItemModel &mappings, int index)
-{
-    return Utils::FileName::fromString(
-        mappings.item(index, Constants::MAP_PATH_COLUMN)->text()
-    );
-}
-
-QStandardItemModel *MappingsManager::readProjectMappings(const ProjectExplorer::Project *project) const
-{
-    auto items = project->namedSettings(QLatin1String(Constants::SETTINGS_GROUP)).toMap()
-                        .value(QLatin1String(Constants::MAPPINGS_GROUP)).toList();
-
-    qDebug() << "Restoring project mappings:" << project->displayName();
-
-    auto model = new QStandardItemModel(0, Constants::MAP_COLUMNS_COUNT);
-    for (auto &item : items) {
-        auto mapping = item.toMap();
-
-        auto nameItem = new QStandardItem(mapping.value(QStringLiteral("name")).toString());
-        qDebug() << "Restoring mapping" << nameItem->text();
-
-        auto enabledItem = new QStandardItem();
-        enabledItem->setData(mapping.value(QStringLiteral("enabled")), Qt::CheckStateRole);
-
-        auto deviceId = mapping.value(QStringLiteral("device"));
-        auto deviceItem = new QStandardItem(deviceId.toString());
-        deviceItem->setData(deviceId, Constants::DEV_ID_ROLE);
-
-        auto pathItem = new QStandardItem(mapping.value(QStringLiteral("path")).toString());
-
-        model->appendRow({ nameItem, enabledItem, deviceItem, pathItem });
-    }
-
-    return model;
-}
-
-void MappingsManager::saveProjectMappings(ProjectExplorer::Project *project)
-{
-    auto model = m_mappings.value(project);
-    if (! model)
-        return;
-
-    qDebug() << "Saving project mappings:" << project->displayName();
+    qDebug() << "Saving project mappings:" << project.displayName();
 
     QVariantList list;
-    for (int i = 0; i < model->rowCount(); i++) {
-        list.append(QVariantMap({
-            { QStringLiteral("name"),    model->item(i, Constants::MAP_NAME_COLUMN)->text() },
-            { QStringLiteral("enabled"), model->item(i, Constants::MAP_ENABLED_COLUMN)->data(Qt::CheckStateRole) },
-            { QStringLiteral("device"),  model->item(i, Constants::MAP_DEVICE_COLUMN)->data(Constants::DEV_ID_ROLE) },
-            { QStringLiteral("path"),    model->item(i, Constants::MAP_PATH_COLUMN)->text() }
-        }));
+    for (const auto &mapping : m_mappings[&project].mappings) {
+       list.append(mapping.toMap());
     }
 
-    auto group = QLatin1String(Constants::SETTINGS_GROUP);
-    auto settings = project->namedSettings(group).toMap();
+    static const auto group = QLatin1String(Constants::SETTINGS_GROUP);
+    auto settings = project.namedSettings(group).toMap();
     settings.insert(QLatin1String(Constants::MAPPINGS_GROUP), list);
-    project->setNamedSettings(group, settings);
+    project.setNamedSettings(group, settings);
 }
 
+MappingsManager::MappingsMeta &MappingsManager::mappingsMetaForProject(ProjectExplorer::Project &project)
+{
+    // if project is just being opened we need to read it's settings
+    if (!m_mappings.contains(&project)) {
+        auto mappings = m_mappings.insert(&project, readProjectMappings(project));
+        mappings->storage->setParent(this);
+
+        // make sure the settings are going to be saved for this project
+        connect(&project, &ProjectExplorer::Project::aboutToSaveSettings,
+                [this, &project]() { this->saveProjectMappings(project); });
+
+    }
+
+    return m_mappings[&project];
+}
+
+} // namespace Internal
+} // namespace RemoteDev

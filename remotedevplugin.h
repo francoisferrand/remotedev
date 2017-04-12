@@ -20,6 +20,7 @@ namespace RemoteDev {
 namespace Internal {
 
 class OptionsPage;
+class ConnectionHelper;
 class ConnectionManager;
 class MappingsManager;
 class DeviceManager;
@@ -38,15 +39,11 @@ public:
     bool delayedInitialize() override;
     ShutdownFlag aboutToShutdown() override;
 
-private:
-    using UploadMethod = RemoteJobId (Connection::*)(Utils::FileName,
-                                                     Utils::FileName,
-                                                     const Utils::FileName&,
-                                                     OverwriteMode);
-
 public slots:
     void uploadCurrentDocument();
+
     void uploadCurrentNode();
+    void downloadCurrentNode();
 
 private slots:
     void triggerAction();
@@ -54,9 +51,13 @@ private slots:
     // ConnectionManager
     void onConnectionError(Connection::Ptr connection);
 
-    void upload(const Utils::FileName &file,
-                ProjectExplorer::Project *project,
-                UploadMethod uploadMethod);
+private:
+    using UploadMethod = RemoteJobId (Connection::*)(Utils::FileName,
+                                                     Utils::FileName,
+                                                     const Utils::FileName &,
+                                                     OverwriteMode);
+
+    using DownloadMethod = UploadMethod;
 
 private:
     void createOptionsPage();
@@ -65,10 +66,24 @@ private:
 
     void showDebug(const QString &string) const;
 
+
+    void upload(const Utils::FileName &file,
+                ProjectExplorer::Project &project,
+                UploadMethod uploadMethod);
+
+    void download(const Utils::FileName &file,
+                  ProjectExplorer::Project &project,
+                  DownloadMethod downloadMethod);
+
+    ConnectionHelper &getConnectionHelper(Connection &connection,
+                                          const QString &mapping,
+                                          const QString &target) const;
+
 private:
     OptionsPage *m_optionsPage;
 
     QAction *m_uploadFile;
+    QAction *m_downloadFile;
     QAction *m_uploadDirectory;
 
     ConnectionManager *m_connManager;

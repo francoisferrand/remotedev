@@ -1,8 +1,11 @@
 #include "connectionhelper.h"
 
+#include "connection.h"
+
 #include <QTime>
 
-using namespace RemoteDev::Internal;
+namespace RemoteDev {
+namespace Internal {
 
 ConnectionHelper::ConnectionHelper(RemoteDev::Connection *parent) :
     QObject(parent)
@@ -20,5 +23,10 @@ void ConnectionHelper::startJob(std::function<RemoteDev::RemoteJobId ()> code)
     timer->start();
 
     auto job = code();
-    m_timers.insert(job, timer);
+    if (job != REMOTE_INVALID_JOB) {
+        m_timers.insert(job, timer);
+    }
 }
+
+} // namespace Internal
+} // namespace RemoteDev

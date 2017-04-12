@@ -44,30 +44,45 @@ RemoteJobId SftpConnection::uploadFile(Utils::FileName local,
                                        const Utils::FileName &file,
                                        OverwriteMode mode)
 {
-    RemoteJobId jobId = ++m_jobIdCounter;
-
-    auto queue = new RemoteJobQueue;
-    enqueueCreatePath(*queue, remote, file);
+    auto *queue = new RemoteJobQueue;
+    queue->append(createSubDirsActions(remote, file));
 
     const auto localFile = local.appendPath(file.toString()).toString();
     const auto remoteFile = remote.appendPath(file.toString()).toString();
     queue->enqueue([localFile, remoteFile, mode] (QSsh::SftpChannel *channel) {
-        auto id = channel->uploadFile(localFile, remoteFile, static_cast<QSsh::SftpOverwriteMode>(mode));
+        auto id = channel->uploadFile(localFile, remoteFile,
+                                      static_cast<QSsh::SftpOverwriteMode>(mode));
         qDebug() << "SFTP" << "*" << id << ": upload file:"
                  << localFile << " -> " << remoteFile;
         return id;
     });
 
-    m_actions.insert(jobId, queue);
+    return createJob(queue);
+}
 
-    if (m_ssh.state() == QSsh::SshConnection::Connected) {
-        // we are already connected -> do the job
-        emit connected();
-    } else {
-        m_ssh.connectToHost();
-    }
+RemoteJobId SftpConnection::downloadFile(Utils::FileName localDir,
+                                         Utils::FileName remoteDir,
+                                         const Utils::FileName &file,
+                                         OverwriteMode mode)
+{
+    const auto remoteFile = remoteDir.appendPath(file.toString()).toString();
+    const auto localFile = localDir.appendPath(file.toString()).toString();
 
-    return jobId;
+    // NOTE: .appendPath changes the FileName object
+    if (!QDir().mkpath(localDir.parentDir().toString()))
+        return REMOTE_INVALID_JOB;
+
+    auto *actions = new RemoteJobQueue;
+    actions->enqueue([remoteFile, localFile, mode](QSsh::SftpChannel *channel) {
+        auto id = channel->downloadFile(remoteFile, localFile,
+                                        static_cast<QSsh::SftpOverwriteMode>(mode));
+        qDebug() << "SFTP" << "*" << id << ": download file:"
+                 << remoteFile << "->" << localFile;
+
+        return id;
+    });
+
+    return createJob(actions);
 }
 
 RemoteJobId SftpConnection::uploadDirectory(Utils::FileName local,
@@ -75,11 +90,9 @@ RemoteJobId SftpConnection::uploadDirectory(Utils::FileName local,
                                             const Utils::FileName &directory,
                                             OverwriteMode mode)
 {
-    RemoteJobId jobId = ++m_jobIdCounter;
-
     auto actions = new RemoteJobQueue;
     if (! directory.isEmpty()) {
-        enqueueCreatePath(*actions, remote, directory);
+        actions->append(createSubDirsActions(remote, directory));
 
         const auto localDir = local.appendPath(directory.toString()).toString();
         const auto remoteDir = remote.appendPath(directory.toString()).parentDir().toString();
@@ -92,19 +105,10 @@ RemoteJobId SftpConnection::uploadDirectory(Utils::FileName local,
     } else {
         // relative path is empty -> have to upload contents of local to remote
         // have to work around stupid directoty upload policy of SftpChannel
-        enqueueUploadContents(*actions, local, remote, mode);
+        actions->append(uploadDirContentsActions(local, remote, mode));
     }
 
-    m_actions.insert(jobId, actions);
-
-    if (m_ssh.state() == QSsh::SshConnection::Connected) {
-        // we are already connected -> do the job
-        emit connected();
-    } else {
-        m_ssh.connectToHost();
-    }
-
-    return jobId;
+    return createJob(actions);
 }
 
 void SftpConnection::startJobs() {
@@ -147,31 +151,35 @@ void SftpConnection::onUploadError(RemoteJobId job, const QString &error, SftpCo
     emit Connection::uploadError(job, error);
 }
 
-void SftpConnection::enqueueCreatePath(SftpConnection::RemoteJobQueue &actions,
-                                       Utils::FileName remoteBase,
-                                       const Utils::FileName &target)
+SftpConnection::RemoteJobQueue SftpConnection::createSubDirsActions(Utils::FileName remoteBase,
+                                                                    const Utils::FileName &target)
 {
+    SftpConnection::RemoteJobQueue actions;
 
     auto parts = target.toString().split(QLatin1Char('/'));
-    parts.takeLast();
+    parts.removeLast();
 
     for (const auto &dir : parts) {
         const auto remoteDir = remoteBase.appendPath(dir).toString();
         qDebug() << "Queue: create directory:" << remoteDir;
 
-        actions.enqueue([remoteDir] (QSsh::SftpChannel *channel) -> QSsh::SftpJobId {
+        actions.enqueue([remoteDir](QSsh::SftpChannel *channel) -> QSsh::SftpJobId {
             auto id = channel->createDirectory(remoteDir);
-            qDebug() << "SFTP" << "*" << id << ": create directory:" << remoteDir;
+            qDebug() << "SFTP"
+                     << "*" << id << ": create directory:" << remoteDir;
             return id;
         });
     }
+
+    return actions;
 }
 
-void SftpConnection::enqueueUploadContents(RemoteJobQueue &actions,
-                                           Utils::FileName local,
-                                           Utils::FileName remote,
-                                           OverwriteMode mode)
+SftpConnection::RemoteJobQueue SftpConnection::uploadDirContentsActions(Utils::FileName local,
+                                                                        Utils::FileName remote,
+                                                                        OverwriteMode mode)
 {
+    RemoteJobQueue actions;
+
     // TODO: use QDir with filters when "ignored patterns" feature
     // is implemented
     QDir localParentDir(local.toString());
@@ -183,8 +191,9 @@ void SftpConnection::enqueueUploadContents(RemoteJobQueue &actions,
             auto remoteFile = Utils::FileName(remote).appendPath(entry.fileName()).toString();
 
             qDebug() << "Queue: upload file:" << localFile << "->" << remoteFile;
-            actions.enqueue([localFile, remoteFile, mode] (QSsh::SftpChannel *channel) -> QSsh::SftpJobId {
-                auto action = channel->uploadFile(localFile, remoteFile, (QSsh::SftpOverwriteMode) mode);
+            actions.enqueue([localFile, remoteFile, mode] (QSsh::SftpChannel *channel) {
+                auto action = channel->uploadFile(localFile, remoteFile,
+                                                  static_cast<QSsh::SftpOverwriteMode>(mode));
                 qDebug() << "SFTP" << "*" << action << ": upload file: " << localFile << "->" << remoteFile;
                 return action;
             });
@@ -192,7 +201,7 @@ void SftpConnection::enqueueUploadContents(RemoteJobQueue &actions,
             auto localDir = entry.filePath();
 
             qDebug() << "Queue: upload directory:" << localDir << "->" << remote.toString();
-            actions.enqueue([localDir, remote] (QSsh::SftpChannel *channel) -> QSsh::SftpJobId {
+            actions.enqueue([localDir, remote] (QSsh::SftpChannel *channel) {
                 auto action = channel->uploadDir(localDir, remote.toString());
                 qDebug() << "SFTP" << "*" << action << ": upload directory" << localDir << "->" << remote.toString();
                 return action;
@@ -201,6 +210,27 @@ void SftpConnection::enqueueUploadContents(RemoteJobQueue &actions,
             qDebug() << "Queue: unsupported file type for: " << entry.fileName();
         }
     }
+
+    return actions;
+}
+
+RemoteJobId SftpConnection::createJob(RemoteJobQueue *actions)
+{
+    if (!actions) return REMOTE_INVALID_JOB;
+
+    auto jobId = createJobId();
+    while (m_actions.contains(jobId))
+        jobId = createJobId();
+
+    m_actions.insert(jobId, actions);
+
+    if (m_ssh.state() == QSsh::SshConnection::Connected) {
+        startJobs();
+    } else {
+        m_ssh.connectToHost();
+    }
+
+    return jobId;
 }
 
 QString SftpConnection::errorString() const

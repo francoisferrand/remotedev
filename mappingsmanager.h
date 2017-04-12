@@ -1,11 +1,15 @@
 #ifndef MAPPINGSMANAGER_H
 #define MAPPINGSMANAGER_H
 
-#include <QObject>
-#include <QHash>
+#include "mappingsmanager/mapping.h"
 
 #include <coreplugin/id.h>
 #include <utils/fileutils.h>
+
+#include <QHash>
+#include <QObject>
+
+#include <vector>
 
 QT_BEGIN_NAMESPACE
 class QStandardItemModel;
@@ -22,19 +26,32 @@ class MappingsManager : public QObject
 public:
     explicit MappingsManager(QObject *parent = 0);
 
-    QStandardItemModel *mappingsForProject(ProjectExplorer::Project *project);
+    const std::vector<Mapping> &mappingsForProject(ProjectExplorer::Project &project);
 
-    static bool isEnabled(const QStandardItemModel &mappings, int index);
-    static Core::Id deviceId(const QStandardItemModel &mappings, int index);
-    static QString mappingName(const QStandardItemModel &mappings, int index);
-    static Utils::FileName remotePath(const QStandardItemModel &mappings, int index);
+    void addMapping(const ProjectExplorer::Project &project,
+                    const QString &name,
+                    bool isEnabled,
+                    const Core::Id &deviceId,
+                    const QString &remotePath);
+private:
+    friend class ProjectSettingsWidget;
+
+    QStandardItemModel &storageForProject(ProjectExplorer::Project &project);
 
 private:
-    QStandardItemModel *readProjectMappings(const ProjectExplorer::Project *project) const;
-    void saveProjectMappings(ProjectExplorer::Project *project);
+    struct MappingsMeta {
+        QStandardItemModel *storage;
+        // QVector does not allow emplace_back
+        std::vector<Mapping> mappings;
+    };
+
+    MappingsMeta readProjectMappings(const ProjectExplorer::Project &project) const;
+    void saveProjectMappings(ProjectExplorer::Project &project);
+
+    MappingsMeta &mappingsMetaForProject(ProjectExplorer::Project &project);
 
 private:
-    QHash<ProjectExplorer::Project *, QStandardItemModel *> m_mappings;
+    QHash<const ProjectExplorer::Project *, MappingsMeta> m_mappings;
 };
 
 } // namespace Internal

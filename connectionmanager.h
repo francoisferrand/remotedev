@@ -3,18 +3,15 @@
 
 #include "remotedev_global.h"
 
+#include "connection.h"
+
 #include <QMutex>
 #include <QSharedPointer>
 #include <QHash>
 
-// FIXME: declare these locally: Core!
-//#include <coreplugin/id.h>
-//#include <projectexplorer/devicesupport/idevice.h>
 
 namespace Core { class Id; }
 namespace ProjectExplorer { class IDevice; }
-
-#include "connection.h"
 
 namespace RemoteDev {
 namespace Internal {
@@ -34,7 +31,7 @@ public:
      * @param device Host device for lookup
      * @return a connection instance
      */
-    static Connection::Ptr connectionForDevice(const ProjectExplorer::IDevice *device);
+    static Connection::Ptr connectionForDevice(const ProjectExplorer::IDevice &device);
 
 signals:
     void disconnected(Connection::Ptr connection);

@@ -13,7 +13,9 @@ SOURCES += \
     connectionhelper.cpp \
     optionspage.cpp \
     optionswidget.cpp \
-    connection/sftpchannelexecutor.cpp
+    connection/sftpchannelexecutor.cpp \
+    mappingsmanager/mapping.cpp \
+    remotedevconstants.cpp
 
 HEADERS += \
     remotedevplugin.h \
@@ -29,7 +31,8 @@ HEADERS += \
     connectionhelper.h \
     optionspage.h \
     optionswidget.h \
-    connection/sftpchannelexecutor.h
+    connection/sftpchannelexecutor.h \
+    mappingsmanager/mapping.h
 
 CONFIG += C++14
 

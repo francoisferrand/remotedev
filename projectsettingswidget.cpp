@@ -1,11 +1,13 @@
 #include "projectsettingswidget.h"
 #include "ui_projectsettingswidget.h"
 
+#include "mappingsmanager.h"
+#include "remotedevconstants.h"
+
 #include <QStandardItemModel>
 #include <QStyledItemDelegate>
 #include <QDataWidgetMapper>
 
-#include "remotedevconstants.h"
 
 #include <QDebug>
 
@@ -63,17 +65,21 @@ private:
     Ui::ProjectSettingsWidget *ui;
 };
 
-ProjectSettingsWidget::ProjectSettingsWidget(ProjectExplorer::Project *prj) :
+ProjectSettingsWidget::ProjectSettingsWidget(ProjectExplorer::Project &project,
+                                             MappingsManager &mapManager) :
     ui(new Ui::ProjectSettingsWidget),
-    m_project(prj),
-    m_mapper(new QDataWidgetMapper(this))
+    m_mapper(new QDataWidgetMapper(this)),
+    m_project(project),
+    m_mapManager(mapManager)
 {
     ui->setupUi(this);
 
-    qDebug() << "Settings widget for project" << prj->displayName();
+    qDebug() << "Settings widget for project" << project.displayName();
 
     m_mapper->setItemDelegate(new MappingSettingsDelegate(ui, m_mapper));
     m_mapper->setSubmitPolicy(QDataWidgetMapper::AutoSubmit);
+
+    setMappingsModel(m_mapManager.storageForProject(m_project));
 }
 
 ProjectSettingsWidget::~ProjectSettingsWidget()
@@ -84,12 +90,13 @@ ProjectSettingsWidget::~ProjectSettingsWidget()
 
 void ProjectSettingsWidget::newMapping()
 {
-    qDebug() << "new mapping for project:" << m_project->displayName();
+    qDebug() << "new mapping for project:" << m_project.displayName();
 
-    this->createMapping(QStringLiteral("<mapping name>"),
-                        true,
-                        Core::Id::fromString(QStringLiteral("<device>")),
-                        QStringLiteral("<path>"));
+    static const auto initialName = QStringLiteral("<mapping name>");
+    static const auto initialDevice = Core::Id::fromString(QStringLiteral("<device>"));
+    static const auto initialPath = QStringLiteral("<path>");
+
+    m_mapManager.addMapping(m_project, initialName, true, initialDevice, initialPath);
 }
 
 void ProjectSettingsWidget::removeMapping()
@@ -104,13 +111,13 @@ void ProjectSettingsWidget::removeMapping()
     // TODO: when no items left -> clear form
 }
 
-void ProjectSettingsWidget::setMappingsModel(QStandardItemModel *mappings)
+void ProjectSettingsWidget::setMappingsModel(QStandardItemModel &mappings)
 {
-    m_mapper->setModel(mappings);
+    m_mapper->setModel(&mappings);
     m_mapper->addMapping(ui->cbxDevice, Constants::MAP_DEVICE_COLUMN);
     m_mapper->addMapping(ui->edtPath, Constants::MAP_PATH_COLUMN);
 
-    ui->tblMappings->setModel(mappings);
+    ui->tblMappings->setModel(&mappings);
     ui->tblMappings->setColumnHidden(Constants::MAP_DEVICE_COLUMN, true);
     ui->tblMappings->setColumnHidden(Constants::MAP_PATH_COLUMN, true);
 
@@ -125,19 +132,10 @@ void ProjectSettingsWidget::setDevicesModel(QStandardItemModel *devices)
     ui->cbxDevice->setCurrentIndex(-1); // clear the combo
 }
 
-void ProjectSettingsWidget::createMapping(const QString &name, bool enabled,
-                                          const Core::Id &device, const QString &path)
+void ProjectSettingsWidget::createMapping(const QString &name,
+                                          bool enabled,
+                                          const Core::Id &device,
+                                          const QString &path)
 {
-    auto nameItem = new QStandardItem(name);
-
-    auto enabledItem = new QStandardItem();
-    enabledItem->setData(enabled, Qt::CheckStateRole);
-
-    auto deviceItem = new QStandardItem(device.toString());
-    deviceItem->setData(device.toSetting(), Constants::DEV_ID_ROLE);
-
-    auto pathItem = new QStandardItem(path);
-
-    auto model = qobject_cast<QStandardItemModel *>(ui->tblMappings->model());
-    model->appendRow({ nameItem, enabledItem, deviceItem, pathItem });
+    m_mapManager.addMapping(m_project, name, enabled, device, path);
 }

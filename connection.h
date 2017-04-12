@@ -15,7 +15,7 @@ namespace Utils {
 
 namespace RemoteDev {
 
-typedef QSsh::SftpJobId RemoteJobId;
+using RemoteJobId = QSsh::SftpJobId;
 
 enum OverwriteMode {
     OverwriteExisting   = QSsh::SftpOverwriteExisting,
@@ -65,6 +65,11 @@ public:
                                         const Utils::FileName &directory,
                                         OverwriteMode mode) = 0;
 
+    virtual RemoteJobId downloadFile(Utils::FileName localDir,
+                                     Utils::FileName remoteDir,
+                                     const Utils::FileName &file,
+                                     OverwriteMode mode) = 0;
+
     /**
      * @brief errorString - get a description for the last error
      * @return the description
@@ -87,10 +92,10 @@ signals:
 protected:
     explicit Connection(const QString &alias, QObject *parent = nullptr);
 
-protected:
-    RemoteJobId m_jobIdCounter;
+    RemoteJobId createJobId() const;
 
-private:
+protected:
+    mutable RemoteJobId m_jobIdCounter = REMOTE_INVALID_JOB;
     const QString m_alias;
 };
 

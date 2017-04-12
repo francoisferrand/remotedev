@@ -3,9 +3,9 @@
 
 #include <functional>
 
+#include <QHash>
 #include <QObject>
 #include <QQueue>
-#include <QHash>
 
 #include <ssh/sshconnection.h>
 
@@ -29,27 +29,35 @@ public:
     RemoteJobId uploadFile(Utils::FileName local,
                            Utils::FileName remote,
                            const Utils::FileName &file,
-                           OverwriteMode mode);
+                           OverwriteMode mode) override;
 
     RemoteJobId uploadDirectory(Utils::FileName local,
                                 Utils::FileName remote,
                                 const Utils::FileName &directory,
-                                OverwriteMode mode);
+                                OverwriteMode mode) override;
 
-    QString errorString() const;
+    RemoteJobId downloadFile(Utils::FileName localDir,
+                             Utils::FileName remoteDir,
+                             const Utils::FileName &file,
+                             OverwriteMode mode) override;
+
+    QString errorString() const override;
 
 private:
     friend class RemoteDev::Internal::SftpChannelExecutor;
-    typedef QQueue<std::function<QSsh::SftpJobId (QSsh::SftpChannel *)>> RemoteJobQueue;
+    using RemoteJobQueue = QQueue<std::function<QSsh::SftpJobId (QSsh::SftpChannel *)>>;
 
-    static void enqueueCreatePath(RemoteJobQueue &actions,
-                                  Utils::FileName remoteBase,
-                                  const Utils::FileName &target);
+    static RemoteJobQueue createSubDirsActions(Utils::FileName remoteBase,
+                                            const Utils::FileName &target);
 
-    static void enqueueUploadContents(RemoteJobQueue &actions,
-                                      Utils::FileName local,
-                                      Utils::FileName remote,
-                                      OverwriteMode mode);
+    static RemoteJobQueue uploadDirContentsActions(Utils::FileName local,
+                                                   Utils::FileName remote,
+                                                   OverwriteMode mode);
+
+    //! Create and run job for provided actions
+    //!
+    //! \note actions have to be allocated
+    RemoteJobId createJob(RemoteJobQueue *actions);
 
 private slots:
     void startJobs();

@@ -17,6 +17,7 @@ namespace Ui {
 class ProjectSettingsWidget;
 }
 
+class MappingsManager;
 class RemoteDevPlugin;
 
 class ProjectSettingsWidget : public QWidget
@@ -24,7 +25,8 @@ class ProjectSettingsWidget : public QWidget
     Q_OBJECT
 
 public:
-    explicit ProjectSettingsWidget(ProjectExplorer::Project *prj);
+    explicit ProjectSettingsWidget(ProjectExplorer::Project &project,
+                                   MappingsManager &mapManager);
 
     ~ProjectSettingsWidget();
 
@@ -36,7 +38,7 @@ private slots:
 private:
     friend class RemoteDevPlugin;
 
-    void setMappingsModel(QStandardItemModel *mappings);
+    void setMappingsModel(QStandardItemModel &mappings);
     void setDevicesModel(QStandardItemModel *devices);
 
     void createMapping(const QString &name, bool enabled,
@@ -44,8 +46,10 @@ private:
 
 private:
     Ui::ProjectSettingsWidget *ui;
-    ProjectExplorer::Project *m_project;
     QDataWidgetMapper *m_mapper;
+
+    ProjectExplorer::Project &m_project;
+    MappingsManager &m_mapManager;
 };
 
 } // namespace Internal
