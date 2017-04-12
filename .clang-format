@@ -72,8 +72,7 @@ ConstructorInitializerAllOnOneLineOrOnePerLine:     true
 # The number of characters to use for indentation of constructor initializer lists.
 ConstructorInitializerIndentWidth:                  4
 # Indent width for line continuations.
-# NOTE: consider 4
-ContinuationIndentWidth:                            2
+ContinuationIndentWidth:                            4
 # If true, format braced lists as best suited for C++11 braced lists.
 # NOTE: consider false
 Cpp11BracedListStyle:                               true
