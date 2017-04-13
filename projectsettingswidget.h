@@ -23,7 +23,6 @@ class RemoteDevPlugin;
 class ProjectSettingsWidget : public QWidget
 {
     Q_OBJECT
-
 public:
     explicit ProjectSettingsWidget(ProjectExplorer::Project &project,
                                    MappingsManager &mapManager);
@@ -37,12 +36,10 @@ private slots:
 
 private:
     friend class RemoteDevPlugin;
-
-    void setMappingsModel(QStandardItemModel &mappings);
     void setDevicesModel(QStandardItemModel *devices);
 
-    void createMapping(const QString &name, bool enabled,
-                       const Core::Id &device, const QString &path);
+private:
+    void setMappingsModel(QStandardItemModel &mappings);
 
 private:
     Ui::ProjectSettingsWidget *ui;

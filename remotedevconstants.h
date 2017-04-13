@@ -8,34 +8,35 @@
 namespace RemoteDev {
 namespace Constants {
 
-/**
- * @brief ACTION_ID identifies RemoteDev default action (to be removed)
- */
-extern const char ACTION_ID[];
+//! identifies RemoteDev default action (to be removed)
+const char ACTION_ID[] = "RemoteDev.Action";
 
-extern const char UPLOAD_FILE[];
-extern const char DOWNLOAD_FILE[];
+const char UPLOAD_FILE[] = "RemoteDev.UploadFile";
+const char DOWNLOAD_FILE[] = "RemoteDev.DownloadFile";
 
-extern const char UPLOAD_DIRECTORY[];
+const char UPLOAD_DIRECTORY[] = "RemoteDev.UploadDirectory";
 
-/**
- * @brief MENU_ID   identifies RemoteDev default menu
- */
-extern const char MENU_ID[];
-/**
- * @brief SETTINGS_GROUP plugin's group in QtCreator's settings object
- * Also, used in ProjectExplorer's Project settings
- */
-extern const char SETTINGS_GROUP[];
-/**
- * @brief MAPPINGS_GROUP subsection which stores remote mappings for project
- */
-extern const char MAPPINGS_GROUP[];
+const char G_DOWNLOAD_FILE[] = "RemoteDev.Group.DownloadFile";
 
-/**
- * Column numbers for mappings data model
- * @todo doxygen group
- */
+//! identifies RemoteDev default menu (to be removed)
+const char MENU_ID[] = "RemoteDev.Menu";
+
+//! Identifies RemoteDev menu for download sources
+const char M_DOWNLOAD_SOURCES[] = "RemoteDev.Menu.DownloadSources";
+
+//! Name of property of QAction that points to it's mapping
+const char P_MAPPING[] = "mapping";
+
+//! Plugin's group in QtCreator's settings object
+//!
+//! Also, used in ProjectExplorer's Project settings
+const char SETTINGS_GROUP[] = "RemoteDev";
+
+//! Subsection which stores remote mappings for project
+const char MAPPINGS_GROUP[] = "Mappings";
+
+//! Column numbers for mappings data model
+//! \todo doxygen group
 constexpr int  MAP_NAME_COLUMN    = 0;
 constexpr int  MAP_ENABLED_COLUMN = 1;
 constexpr int  MAP_DEVICE_COLUMN  = 2;

@@ -28,11 +28,15 @@ public:
 
     const std::vector<Mapping> &mappingsForProject(ProjectExplorer::Project &project);
 
-    void addMapping(const ProjectExplorer::Project &project,
-                    const QString &name,
-                    bool isEnabled,
-                    const Core::Id &deviceId,
-                    const QString &remotePath);
+    void createMapping(const ProjectExplorer::Project &project,
+                       const QString &name,
+                       bool isEnabled,
+                       const Core::Id &deviceId,
+                       const QString &remotePath);
+
+    void removeMapping(const ProjectExplorer::Project &project,
+                       std::uint16_t index);
+
 private:
     friend class ProjectSettingsWidget;
 

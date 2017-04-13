@@ -21,17 +21,31 @@ const std::vector<Mapping> &MappingsManager::mappingsForProject(ProjectExplorer:
     return mappingsMetaForProject(project).mappings;
 }
 
-void MappingsManager::addMapping(const ProjectExplorer::Project &project,
-                                 const QString &name,
-                                 bool isEnabled,
-                                 const Core::Id &deviceId,
-                                 const QString &remotePath)
+void MappingsManager::createMapping(const ProjectExplorer::Project &project,
+                                    const QString &name,
+                                    bool isEnabled,
+                                    const Core::Id &deviceId,
+                                    const QString &remotePath)
 {
     auto &projectMappings = m_mappings[&project];
 
     projectMappings.mappings.emplace_back(
         Mapping(name, isEnabled, deviceId, remotePath, *projectMappings.storage)
     );
+}
+
+void MappingsManager::removeMapping(const ProjectExplorer::Project &project,
+                                    std::uint16_t index)
+{
+    if (!m_mappings.contains(&project))
+        return;
+
+    auto &metaMappings = m_mappings[&project];
+    if (index >= metaMappings.mappings.size())
+        return;
+
+    metaMappings.mappings.erase(metaMappings.mappings.begin() + static_cast<int64_t>(index));
+    metaMappings.storage->removeRow(static_cast<int>(index));
 }
 
 QStandardItemModel &MappingsManager::storageForProject(ProjectExplorer::Project &project)

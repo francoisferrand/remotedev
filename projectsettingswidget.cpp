@@ -96,18 +96,17 @@ void ProjectSettingsWidget::newMapping()
     static const auto initialDevice = Core::Id::fromString(QStringLiteral("<device>"));
     static const auto initialPath = QStringLiteral("<path>");
 
-    m_mapManager.addMapping(m_project, initialName, true, initialDevice, initialPath);
+    m_mapManager.createMapping(m_project, initialName, true, initialDevice, initialPath);
 }
 
 void ProjectSettingsWidget::removeMapping()
 {
-    auto model = qobject_cast<QStandardItemModel *>(ui->tblMappings->model());
+    // UI (for now) restricts selection to one row at a time, but let's support more
     auto indexes = ui->tblMappings->selectionModel()->selectedRows();
-
-    // UI restricts selection to one row at a time, but let's support more
     for (const auto &index : indexes) {
-        model->removeRow(index.row());
+        m_mapManager.removeMapping(m_project, static_cast<std::uint16_t>(index.row()));
     }
+
     // TODO: when no items left -> clear form
 }
 
@@ -130,12 +129,4 @@ void ProjectSettingsWidget::setDevicesModel(QStandardItemModel *devices)
     ui->cbxDevice->setModel(devices);
     ui->cbxDevice->setModelColumn(Constants::DEV_NAME_COLUMN);
     ui->cbxDevice->setCurrentIndex(-1); // clear the combo
-}
-
-void ProjectSettingsWidget::createMapping(const QString &name,
-                                          bool enabled,
-                                          const Core::Id &device,
-                                          const QString &path)
-{
-    m_mapManager.addMapping(m_project, name, enabled, device, path);
 }

@@ -14,8 +14,7 @@ SOURCES += \
     optionspage.cpp \
     optionswidget.cpp \
     connection/sftpchannelexecutor.cpp \
-    mappingsmanager/mapping.cpp \
-    remotedevconstants.cpp
+    mappingsmanager/mapping.cpp
 
 HEADERS += \
     remotedevplugin.h \

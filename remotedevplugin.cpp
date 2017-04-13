@@ -43,8 +43,11 @@ RemoteDevPlugin::RemoteDevPlugin() :
     m_uploadDirectory(nullptr),
     m_connManager(new ConnectionManager),
     m_mapManager(new MappingsManager),
-    m_devManager(new DeviceManager)
-{}
+    m_devManager(new DeviceManager),
+    m_downloadActionGroup(new QActionGroup(this))
+{
+    m_downloadActionGroup->setExclusive(true);
+}
 
 RemoteDevPlugin::~RemoteDevPlugin()
 {
@@ -157,7 +160,7 @@ void RemoteDevPlugin::uploadCurrentDocument()
 
 void RemoteDevPlugin::uploadCurrentNode()
 {
-    auto node = ProjectExplorer::ProjectTree::currentNode();
+    auto *node = ProjectExplorer::ProjectTree::currentNode();
     if (!node) return;
 
     auto *project = ProjectExplorer::ProjectTree::projectForNode(node);
@@ -181,7 +184,27 @@ void RemoteDevPlugin::uploadCurrentNode()
     }
 }
 
-void RemoteDevPlugin::downloadCurrentNode()
+void RemoteDevPlugin::downloadCurrentNodeUsingActiveMapping()
+{
+    // find active (checked) mapping
+    // NOTE: this relies that menu items cortespond 1:1 to existing mappings
+    auto actions = m_downloadActionGroup->actions();
+    auto checked = std::find_if(actions.begin(), actions.end(), [](const QAction *a) {
+        return a->isChecked();
+    });
+
+    if (checked == actions.end()) return;
+
+    auto *project = ProjectExplorer::ProjectTree::currentProject();
+    if (!project) return;
+
+    auto index = static_cast<std::size_t>(checked - actions.begin());
+    const Mapping &mapping = m_mapManager->mappingsForProject(*project)[index];
+
+    downloadCurrentNode(mapping);
+}
+
+void RemoteDevPlugin::downloadCurrentNode(const Mapping &mapping)
 {
     auto node = ProjectExplorer::ProjectTree::currentNode();
     if (!node) return;
@@ -191,7 +214,7 @@ void RemoteDevPlugin::downloadCurrentNode()
 
     switch (node->nodeType()) {
     case ProjectExplorer::FileNodeType:
-        download(node->filePath(), *project, &Connection::downloadFile);
+        download(node->filePath(), *project, &Connection::downloadFile, mapping);
         break;
     case ProjectExplorer::FolderNodeType:
     case ProjectExplorer::ProjectNodeType:
@@ -217,6 +240,35 @@ void RemoteDevPlugin::onConnectionError(Connection::Ptr connection)
     } else {
         this->showDebug(tr("Remote connection error"));
     }
+}
+
+void RemoteDevPlugin::onDownloadMenuAboutToShow()
+{
+    // populate menu with download sources for this project
+    for (auto *action : m_downloadActionGroup->actions()) {
+        delete action;
+    }
+
+    auto *project = ProjectExplorer::ProjectTree::currentProject();
+    if (!project) return;
+
+    const auto &mappings = m_mapManager->mappingsForProject(*project);
+    for (const Mapping &mapping : mappings) {
+        auto *action = new QAction(mapping.name(), this);
+        action->setCheckable(true);
+        action->setActionGroup(m_downloadActionGroup);
+        connect(action, &QAction::triggered, [&mapping, this]() {
+            this->downloadCurrentNode(mapping);
+        });
+
+        // TODO: add flag to mapping (if it was selected as default for download)
+
+        m_downloadMenu->menu()->addAction(action);
+    }
+
+    auto actions = m_downloadActionGroup->actions();
+    if (!actions.empty())
+        actions.front()->setChecked(true);
 }
 
 void RemoteDevPlugin::upload(const Utils::FileName &file,
@@ -271,34 +323,19 @@ void RemoteDevPlugin::upload(const Utils::FileName &file,
 
 void RemoteDevPlugin::download(const Utils::FileName &file,
                                ProjectExplorer::Project &project,
-                               RemoteDevPlugin::DownloadMethod downloadMethod)
+                               RemoteDevPlugin::DownloadMethod downloadMethod,
+                               const Mapping &mapping)
 {
     const auto localDir = project.projectDirectory();
     const auto relpath = file.relativeChildPath(localDir);
 
     qDebug() << "Download file for project " << project.displayName() << ":"
-             << relpath.toString();
+             << relpath.toString() << "and mapping" << mapping.name();
 
-
-
-    // FIXME: name of mapping (default for download) should be passed
-    // FIXME: for now, grab first enabled mapping
-    //        (although it is not necessary for the mapping to be enabled here)
-    // FIXME: decide if Mapping::isEnabled() controls only upload
-    const auto &mappings = m_mapManager->mappingsForProject(project);
-    const auto mapping = std::find_if(mappings.begin(),
-                                      mappings.end(),
-                                      [](const Mapping &m) { return m.isEnabled(); });
-
-    if (mapping == mappings.end()) {
-        qDebug() << "Download mapping not selected";
-        return;
-    }
-
-    const auto mappingName = mapping->name();
+    const auto mappingName = mapping.name();
 
     auto deviceMgr = ProjectExplorer::DeviceManager::instance();
-    auto device = deviceMgr->find(mapping->deviceId());
+    auto device = deviceMgr->find(mapping.deviceId());
     if (device.isNull()) {
         qDebug() << "No device can be found for mapping" << mappingName;
         return;
@@ -308,14 +345,17 @@ void RemoteDevPlugin::download(const Utils::FileName &file,
     if (connection.isNull())
         return;
 
-    const auto remote = mapping->remotePath();
+    const auto remote = mapping.remotePath();
     showDebug(QStringLiteral("%1: Download \"%2\": \"%3\" -> \"%4\"").arg(
         mappingName, relpath.toString(), localDir.toString(), remote.toString()
     ));
 
     auto &helper = getConnectionHelper(*connection, mappingName, localDir.toString());
     helper.startJob([&]() {
-        auto job = (connection.data()->*downloadMethod)(localDir, remote, relpath, OverwriteExisting);
+        auto job = (connection.data()->*downloadMethod)(localDir,
+                                                        remote,
+                                                        relpath,
+                                                        OverwriteExisting);
         qDebug() << "Started job" << mappingName << "->" << job;
         return job;
     });
@@ -402,21 +442,35 @@ void RemoteDevPlugin::createFileMenus()
 
     // "Upload File" menu
     m_uploadFile = new QAction(tr("Upload File"), this);
-    auto *cmd = Core::ActionManager::registerAction(m_uploadFile, Constants::UPLOAD_FILE,
-                                                   projectTreeContext);
+    auto *uploadFileCmd = Core::ActionManager::registerAction(m_uploadFile,
+                                                              Constants::UPLOAD_FILE,
+                                                              projectTreeContext);
 
-    fileContextMenu->addAction(cmd, ProjectExplorer::Constants::G_FILE_OTHER);
+    fileContextMenu->addAction(uploadFileCmd, ProjectExplorer::Constants::G_FILE_OTHER);
     connect(m_uploadFile, &QAction::triggered,
             this, &RemoteDevPlugin::uploadCurrentNode);
 
     // "Download File" menu
     m_downloadFile = new QAction(tr("Download File"), this);
-    cmd = Core::ActionManager::registerAction(m_downloadFile, Constants::DOWNLOAD_FILE,
-                                              projectTreeContext);
+    auto *downloadFileCmd = Core::ActionManager::registerAction(m_downloadFile,
+                                                                Constants::DOWNLOAD_FILE,
+                                                                projectTreeContext);
 
-    fileContextMenu->addAction(cmd, ProjectExplorer::Constants::G_FILE_OTHER);
+    fileContextMenu->addAction(downloadFileCmd, ProjectExplorer::Constants::G_FILE_OTHER);
     connect(m_downloadFile, &QAction::triggered,
-            this, &RemoteDevPlugin::downloadCurrentNode);
+            this, &RemoteDevPlugin::downloadCurrentNodeUsingActiveMapping);
+
+    m_downloadMenu = Core::ActionManager::createMenu(Constants::M_DOWNLOAD_SOURCES);
+
+    m_downloadMenu->appendGroup(Constants::G_DOWNLOAD_FILE);
+    m_downloadMenu->addAction(downloadFileCmd, Constants::G_DOWNLOAD_FILE);
+    m_downloadMenu->addSeparator(Constants::G_DOWNLOAD_FILE);
+
+    m_downloadMenu->menu()->setTitle(tr("Download"));
+    connect(m_downloadMenu->menu(), &QMenu::aboutToShow,
+            this, &RemoteDevPlugin::onDownloadMenuAboutToShow);
+
+    fileContextMenu->addMenu(m_downloadMenu, ProjectExplorer::Constants::G_FILE_OTHER);
 
     // "Upload Directory" menu
     auto folderContextMenu =
@@ -427,11 +481,13 @@ void RemoteDevPlugin::createFileMenus()
             Core::ActionManager::actionContainer(ProjectExplorer::Constants::M_SUBPROJECTCONTEXT);
 
     m_uploadDirectory = new QAction(tr("Upload Directory"), this);
-    cmd = Core::ActionManager::registerAction(m_uploadDirectory, Constants::UPLOAD_DIRECTORY, projectTreeContext);
+    auto *uploadDirectoryCmd = Core::ActionManager::registerAction(m_uploadDirectory,
+                                                                   Constants::UPLOAD_DIRECTORY,
+                                                                   projectTreeContext);
 
-    folderContextMenu->addAction(cmd, ProjectExplorer::Constants::G_FOLDER_OTHER);
-    projectContextMenu->addAction(cmd, ProjectExplorer::Constants::G_PROJECT_FILES);
-    subProjectContextMenu->addAction(cmd, ProjectExplorer::Constants::G_PROJECT_FILES);
+    folderContextMenu->addAction(uploadDirectoryCmd, ProjectExplorer::Constants::G_FOLDER_OTHER);
+    projectContextMenu->addAction(uploadDirectoryCmd, ProjectExplorer::Constants::G_PROJECT_FILES);
+    subProjectContextMenu->addAction(uploadDirectoryCmd, ProjectExplorer::Constants::G_PROJECT_FILES);
     connect(m_uploadDirectory, &QAction::triggered,
             this, &RemoteDevPlugin::uploadCurrentNode);
 }

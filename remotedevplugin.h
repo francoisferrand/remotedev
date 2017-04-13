@@ -11,9 +11,10 @@
 
 QT_BEGIN_NAMESPACE
 class QAction;
+class QActionGroup;
 QT_END_NAMESPACE
 
-namespace Core { class IEditor; }
+namespace Core { class IEditor; class ActionContainer; }
 namespace ProjectExplorer { class Project; }
 
 namespace RemoteDev {
@@ -22,6 +23,7 @@ namespace Internal {
 class OptionsPage;
 class ConnectionHelper;
 class ConnectionManager;
+class Mapping;
 class MappingsManager;
 class DeviceManager;
 
@@ -43,13 +45,17 @@ public slots:
     void uploadCurrentDocument();
 
     void uploadCurrentNode();
-    void downloadCurrentNode();
+
+    void downloadCurrentNodeUsingActiveMapping();
+    void downloadCurrentNode(const Mapping &mapping);
 
 private slots:
     void triggerAction();
 
     // ConnectionManager
     void onConnectionError(Connection::Ptr connection);
+
+    void onDownloadMenuAboutToShow();
 
 private:
     using UploadMethod = RemoteJobId (Connection::*)(Utils::FileName,
@@ -73,7 +79,8 @@ private:
 
     void download(const Utils::FileName &file,
                   ProjectExplorer::Project &project,
-                  DownloadMethod downloadMethod);
+                  DownloadMethod downloadMethod,
+                  const Mapping &mapping);
 
     ConnectionHelper &getConnectionHelper(Connection &connection,
                                           const QString &mapping,
@@ -89,6 +96,9 @@ private:
     ConnectionManager *m_connManager;
     MappingsManager   *m_mapManager;
     DeviceManager     *m_devManager;
+
+    Core::ActionContainer *m_downloadMenu;
+    QActionGroup *m_downloadActionGroup;
 };
 
 } // namespace Internal
